@@ -1,0 +1,64 @@
+<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>업무일지 자동화 툴</title>
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <main class="app">
+      <section class="intro">
+        <p class="eyebrow">Worklog Builder</p>
+        <h1>업무일지를 빠르게 정리하세요.</h1>
+        <p class="lead">
+          오늘 한 일, 이슈, 내일 할 일을 입력하면 바로 공유 가능한 업무일지로 정리됩니다.
+        </p>
+      </section>
+
+      <section class="workspace" aria-label="업무일지 작성 도구">
+        <form class="editor" id="worklog-form">
+          <label>
+            날짜
+            <input id="work-date" type="date" required />
+          </label>
+
+          <label>
+            작성자
+            <input id="author" type="text" placeholder="예: ororagi" />
+          </label>
+
+          <label>
+            오늘 한 일
+            <textarea id="done" rows="6" placeholder="한 줄에 하나씩 적어주세요."></textarea>
+          </label>
+
+          <label>
+            이슈 / 막힌 점
+            <textarea id="issues" rows="4" placeholder="없으면 비워두세요."></textarea>
+          </label>
+
+          <label>
+            내일 할 일
+            <textarea id="next" rows="4" placeholder="한 줄에 하나씩 적어주세요."></textarea>
+          </label>
+
+          <div class="actions">
+            <button type="submit">일지 만들기</button>
+            <button type="button" class="secondary" id="clear-button">초기화</button>
+          </div>
+        </form>
+
+        <section class="preview" aria-label="생성된 업무일지">
+          <div class="preview-header">
+            <h2>생성된 업무일지</h2>
+            <button type="button" class="secondary" id="copy-button">복사</button>
+          </div>
+          <pre id="result">왼쪽에 내용을 입력하면 업무일지가 만들어집니다.</pre>
+        </section>
+      </section>
+    </main>
+
+    <script src="./app.js"></script>
+  </body>
+</html>
