@@ -20,3 +20,25 @@
 - 일지 파일 다운로드
 - 템플릿 여러 개 관리
 - 팀 공유용 형식 추가
+
+## 엑셀 자동화 실행
+
+필요 패키지를 설치합니다.
+
+```powershell
+python -m pip install -r requirements.txt
+```
+
+기본 실행은 `low.xlsx`에서 가장 마지막 날짜를 찾아 `worklog_set.xlsx`의 4월 시트에 입력합니다.
+
+```powershell
+python automate_worklog.py
+```
+
+특정 날짜로 실행할 수도 있습니다.
+
+```powershell
+python automate_worklog.py --date 2026-04-11
+```
+
+결과 파일과 실행 리포트는 `output` 폴더에 저장됩니다.
