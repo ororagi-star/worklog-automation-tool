@@ -4,6 +4,7 @@ build/
 output/
 uploads/
 .tmp_uploads/
+*.xlsx
 .env
 *.log
 __pycache__/
