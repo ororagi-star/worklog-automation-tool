@@ -1,19 +1,23 @@
 from __future__ import annotations
 
 import shutil
+import sys
 import uuid
-from io import BytesIO
+import webbrowser
 from datetime import date
 from pathlib import Path
+from threading import Timer
 
-from flask import Flask, Response, flash, redirect, render_template_string, request, send_file, url_for
+from flask import Flask, Response, flash, redirect, render_template_string, request, url_for
 from werkzeug.utils import secure_filename
 
 from automate_worklog import fill_worklog
 
 
-BASE_DIR = Path(__file__).resolve().parent
+BASE_DIR = Path(sys.executable).resolve().parent if getattr(sys, "frozen", False) else Path(__file__).resolve().parent
 TEMP_ROOT = BASE_DIR / ".tmp_uploads"
+DEFAULT_TEMPLATE_FILE = BASE_DIR / "worklog_set.xlsx"
+DEFAULT_OUTPUT_DIR = BASE_DIR / "output"
 
 app = Flask(__name__)
 app.secret_key = "worklog-local-secret"
@@ -61,14 +65,15 @@ PAGE = """
 
       .layout {
         display: grid;
-        grid-template-columns: minmax(0, 1fr) 280px;
+        grid-template-columns: minmax(0, 1fr) 300px;
         gap: 22px;
         margin-top: 24px;
         align-items: start;
       }
 
       form,
-      aside {
+      aside,
+      .result {
         border: 1px solid #dce5e2;
         border-radius: 8px;
         background: #ffffff;
@@ -112,7 +117,9 @@ PAGE = """
 
       .hint {
         margin-top: 8px;
+        color: #687786;
         font-size: 13px;
+        font-weight: 400;
       }
 
       .notice {
@@ -121,6 +128,21 @@ PAGE = """
         background: #edf7f4;
         padding: 12px;
         color: #26443d;
+      }
+
+      .result {
+        margin-top: 18px;
+        border-color: #b7d9d1;
+        background: #eef9f6;
+      }
+
+      .path {
+        display: block;
+        margin-top: 8px;
+        overflow-wrap: anywhere;
+        color: #153b33;
+        font-family: Consolas, "Courier New", monospace;
+        font-size: 14px;
       }
 
       ul {
@@ -144,7 +166,7 @@ PAGE = """
   <body>
     <main>
       <h1>업무일지 자동 생성</h1>
-      <p>출결 파일과 업무일지 양식을 올리면 완성된 엑셀 파일이 바로 다운로드됩니다.</p>
+      <p>출결 파일만 올리면 기본 업무일지 양식으로 결과 엑셀을 만들어 저장합니다.</p>
 
       {% with messages = get_flashed_messages() %}
         {% if messages %}
@@ -159,13 +181,13 @@ PAGE = """
           <label>
             출결 파일 low.xlsx
             <input type="file" name="low_file" accept=".xlsx" required />
-            <span class="hint">출결 현황 원본 파일을 선택하세요.</span>
+            <span class="hint">이 파일만 선택하면 바로 결과를 만들 수 있습니다.</span>
           </label>
 
           <label>
-            업무일지 양식 worklog_set.xlsx
-            <input type="file" name="template_file" accept=".xlsx" required />
-            <span class="hint">4월 시트가 들어있는 업무일지 양식을 선택하세요.</span>
+            수정 양식 업로드
+            <input type="file" name="template_file" accept=".xlsx" />
+            <span class="hint">비워두면 앱 폴더의 worklog_set.xlsx를 자동 사용합니다.</span>
           </label>
 
           <label>
@@ -174,18 +196,33 @@ PAGE = """
             <span class="hint">비워두면 출석 데이터가 있는 마지막 날짜를 자동으로 사용합니다.</span>
           </label>
 
+          <label>
+            결과 저장 폴더
+            <input type="text" name="output_dir" value="{{ default_output_dir }}" />
+            <span class="hint">기본값은 앱 폴더 안의 output 폴더입니다.</span>
+          </label>
+
           <button type="submit">결과 엑셀 만들기</button>
         </form>
 
         <aside>
-          <strong>처리 방식</strong>
+          <strong>사용 흐름</strong>
           <ul>
-            <li>업로드한 파일은 처리 중에만 사용됩니다.</li>
-            <li>프로그램명 매칭 후 일계와 월계를 입력합니다.</li>
-            <li>결과 파일은 바로 다운로드됩니다.</li>
+            <li>보통은 low.xlsx만 올리면 됩니다.</li>
+            <li>worklog_set.xlsx는 앱 폴더에 둡니다.</li>
+            <li>결과는 지정한 폴더에 저장됩니다.</li>
           </ul>
         </aside>
       </div>
+
+      {% if result %}
+        <section class="result">
+          <strong>생성 완료</strong>
+          <p>기준일: {{ result.target_date }}</p>
+          <p>결과 파일:</p>
+          <span class="path">{{ result.output_file }}</span>
+        </section>
+      {% endif %}
     </main>
   </body>
 </html>
@@ -197,23 +234,29 @@ def allowed_xlsx(file_storage) -> bool:
     return filename.lower().endswith(".xlsx")
 
 
+def render_page(result: dict | None = None, output_dir: Path = DEFAULT_OUTPUT_DIR) -> str:
+    return render_template_string(PAGE, default_output_dir=str(output_dir), result=result)
+
+
 @app.get("/")
 def index() -> str:
-    return render_template_string(PAGE)
+    return render_page()
 
 
 @app.post("/generate")
-def generate() -> Response:
+def generate() -> Response | str:
     low_file = request.files.get("low_file")
     template_file = request.files.get("template_file")
     target_date_text = (request.form.get("target_date") or "").strip()
+    output_dir_text = (request.form.get("output_dir") or "").strip()
 
-    if not low_file or not template_file:
-        flash("두 개의 엑셀 파일을 모두 선택해주세요.")
+    if not low_file:
+        flash("출결 파일 low.xlsx를 선택해주세요.")
         return redirect(url_for("index"))
 
-    if not allowed_xlsx(low_file) or not allowed_xlsx(template_file):
-        flash("xlsx 파일만 업로드할 수 있습니다.")
+    has_template_upload = template_file is not None and bool(template_file.filename)
+    if not allowed_xlsx(low_file) or (has_template_upload and not allowed_xlsx(template_file)):
+        flash("xlsx 파일만 사용할 수 있습니다.")
         return redirect(url_for("index"))
 
     try:
@@ -222,41 +265,61 @@ def generate() -> Response:
         flash("기준일 형식이 올바르지 않습니다.")
         return redirect(url_for("index"))
 
-    TEMP_ROOT.mkdir(parents=True, exist_ok=True)
+    output_dir = Path(output_dir_text) if output_dir_text else DEFAULT_OUTPUT_DIR
+    try:
+        output_dir.mkdir(parents=True, exist_ok=True)
+    except OSError as exc:
+        flash(f"결과 저장 폴더를 만들 수 없습니다: {exc}")
+        return redirect(url_for("index"))
 
+    TEMP_ROOT.mkdir(parents=True, exist_ok=True)
     temp_dir = TEMP_ROOT / uuid.uuid4().hex
     temp_dir.mkdir(parents=True, exist_ok=True)
+
     try:
         low_path = temp_dir / "low.xlsx"
-        template_path = temp_dir / "worklog_set.xlsx"
-        output_path = temp_dir / "worklog_result.xlsx"
-
         low_file.save(low_path)
-        template_file.save(template_path)
+
+        if has_template_upload:
+            template_path = temp_dir / "worklog_set.xlsx"
+            template_file.save(template_path)
+        else:
+            template_path = DEFAULT_TEMPLATE_FILE
+            if not template_path.exists():
+                flash("기본 양식 worklog_set.xlsx가 앱 폴더에 없습니다.")
+                return redirect(url_for("index"))
+
+        temp_output_path = temp_dir / "worklog_result.xlsx"
 
         try:
             summary = fill_worklog(
                 low_file=low_path,
                 template_file=template_path,
-                output_file=output_path,
+                output_file=temp_output_path,
                 target_date=target_date,
             )
         except Exception as exc:
             flash(f"처리 중 오류가 발생했습니다: {exc}")
             return redirect(url_for("index"))
 
-        download_name = f"worklog_result_{summary['target_date']}.xlsx"
-        result_bytes = BytesIO(output_path.read_bytes())
-        result_bytes.seek(0)
-        return send_file(
-            result_bytes,
-            as_attachment=True,
-            download_name=download_name,
-            mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        final_output_path = output_dir / f"worklog_result_{summary['target_date']}.xlsx"
+        shutil.copy2(temp_output_path, final_output_path)
+
+        return render_page(
+            output_dir=output_dir,
+            result={
+                "target_date": summary["target_date"],
+                "output_file": str(final_output_path),
+            },
         )
     finally:
         shutil.rmtree(temp_dir, ignore_errors=True)
 
 
+def open_browser() -> None:
+    webbrowser.open("http://127.0.0.1:5000")
+
+
 if __name__ == "__main__":
+    Timer(1.0, open_browser).start()
     app.run(host="127.0.0.1", port=5000, debug=False)

@@ -58,3 +58,27 @@ http://127.0.0.1:5000
 ```
 
 배포 서비스에서는 `Procfile`의 명령으로 실행할 수 있습니다.
+
+## 로컬 업무용 실행
+
+Python이 설치된 PC에서는 `start_app.bat`를 더블클릭하면 앱이 실행되고 브라우저가 열립니다.
+
+기본 양식 파일은 앱 폴더의 `worklog_set.xlsx`를 자동으로 사용합니다. 평소에는 출결 파일 `low.xlsx`만 업로드하면 됩니다.
+
+결과 파일은 기본적으로 `output` 폴더에 저장됩니다.
+
+## EXE 만들기
+
+Python이 없는 PC에서 쓰려면 `build_exe.bat`를 실행해 exe 파일을 만듭니다.
+
+빌드가 끝나면 `dist` 폴더에 아래 파일을 같이 둡니다.
+
+```text
+dist/
+└─ WorklogAutomation/
+   ├─ WorklogAutomation.exe
+   ├─ worklog_set.xlsx
+   └─ _internal/
+```
+
+다른 PC에는 `dist/WorklogAutomation` 폴더를 통째로 전달하면 됩니다.
