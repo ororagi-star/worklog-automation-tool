@@ -11,12 +11,15 @@ from threading import Timer
 from flask import Flask, Response, flash, redirect, render_template_string, request, url_for
 from werkzeug.utils import secure_filename
 
-from automate_worklog import fill_worklog
+from automate_worklog import fill_worklog_dates
 
 
 BASE_DIR = Path(sys.executable).resolve().parent if getattr(sys, "frozen", False) else Path(__file__).resolve().parent
 TEMP_ROOT = BASE_DIR / ".tmp_uploads"
-DEFAULT_TEMPLATE_FILE = BASE_DIR / "worklog_set.xlsx"
+DEFAULT_TEMPLATE_FILES = [
+    ("worklog_set1", BASE_DIR / "worklog_set1.xlsx"),
+    ("worklog_set2", BASE_DIR / "worklog_set2.xlsx"),
+]
 DEFAULT_OUTPUT_DIR = BASE_DIR / "output"
 
 app = Flask(__name__)
@@ -185,15 +188,21 @@ PAGE = """
           </label>
 
           <label>
-            수정 양식 업로드
-            <input type="file" name="template_file" accept=".xlsx" />
-            <span class="hint">비워두면 앱 폴더의 worklog_set.xlsx를 자동 사용합니다.</span>
+            수정 양식 1 업로드
+            <input type="file" name="template_file_1" accept=".xlsx" />
+            <span class="hint">비워두면 앱 폴더의 worklog_set1.xlsx를 자동 사용합니다.</span>
+          </label>
+
+          <label>
+            수정 양식 2 업로드
+            <input type="file" name="template_file_2" accept=".xlsx" />
+            <span class="hint">비워두면 앱 폴더의 worklog_set2.xlsx를 자동 사용합니다.</span>
           </label>
 
           <label>
             기준일
-            <input type="date" name="target_date" />
-            <span class="hint">비워두면 출석 데이터가 있는 마지막 날짜를 자동으로 사용합니다.</span>
+            <input type="text" name="target_dates" placeholder="예: 2026-04-09, 2026-04-10" />
+            <span class="hint">하루만 쓰거나 쉼표로 여러 날짜를 입력하세요. 비워두면 마지막 출석일을 사용합니다.</span>
           </label>
 
           <label>
@@ -209,8 +218,9 @@ PAGE = """
           <strong>사용 흐름</strong>
           <ul>
             <li>보통은 low.xlsx만 올리면 됩니다.</li>
-            <li>worklog_set.xlsx는 앱 폴더에 둡니다.</li>
-            <li>결과는 지정한 폴더에 저장됩니다.</li>
+            <li>양식 1, 2는 앱 폴더에서 자동으로 찾습니다.</li>
+            <li>여러 날짜는 한 시트 아래로 이어 붙입니다.</li>
+            <li>결과는 양식별 파일 2개로 저장됩니다.</li>
           </ul>
         </aside>
       </div>
@@ -220,7 +230,9 @@ PAGE = """
           <strong>생성 완료</strong>
           <p>기준일: {{ result.target_date }}</p>
           <p>결과 파일:</p>
-          <span class="path">{{ result.output_file }}</span>
+          {% for output_file in result.output_files %}
+            <span class="path">{{ output_file }}</span>
+          {% endfor %}
         </section>
       {% endif %}
     </main>
@@ -232,6 +244,29 @@ PAGE = """
 def allowed_xlsx(file_storage) -> bool:
     filename = secure_filename(file_storage.filename or "")
     return filename.lower().endswith(".xlsx")
+
+
+def parse_target_dates(value: str) -> list[date] | None:
+    if not value.strip():
+        return None
+
+    parts = [part.strip() for part in value.replace("\n", ",").split(",") if part.strip()]
+    if not parts:
+        return None
+
+    return [date.fromisoformat(part) for part in parts]
+
+
+def uploaded_template_or_default(uploaded_file, default_path: Path, temp_dir: Path, file_name: str) -> Path:
+    if uploaded_file is not None and bool(uploaded_file.filename):
+        template_path = temp_dir / file_name
+        uploaded_file.save(template_path)
+        return template_path
+
+    if not default_path.exists():
+        raise FileNotFoundError(f"기본 양식 {default_path.name}가 앱 폴더에 없습니다.")
+
+    return default_path
 
 
 def render_page(result: dict | None = None, output_dir: Path = DEFAULT_OUTPUT_DIR) -> str:
@@ -246,23 +281,29 @@ def index() -> str:
 @app.post("/generate")
 def generate() -> Response | str:
     low_file = request.files.get("low_file")
-    template_file = request.files.get("template_file")
-    target_date_text = (request.form.get("target_date") or "").strip()
+    template_file_1 = request.files.get("template_file_1")
+    template_file_2 = request.files.get("template_file_2")
+    target_dates_text = (request.form.get("target_dates") or "").strip()
     output_dir_text = (request.form.get("output_dir") or "").strip()
 
     if not low_file:
         flash("출결 파일 low.xlsx를 선택해주세요.")
         return redirect(url_for("index"))
 
-    has_template_upload = template_file is not None and bool(template_file.filename)
-    if not allowed_xlsx(low_file) or (has_template_upload and not allowed_xlsx(template_file)):
+    has_template_upload_1 = template_file_1 is not None and bool(template_file_1.filename)
+    has_template_upload_2 = template_file_2 is not None and bool(template_file_2.filename)
+    if (
+        not allowed_xlsx(low_file)
+        or (has_template_upload_1 and not allowed_xlsx(template_file_1))
+        or (has_template_upload_2 and not allowed_xlsx(template_file_2))
+    ):
         flash("xlsx 파일만 사용할 수 있습니다.")
         return redirect(url_for("index"))
 
     try:
-        target_date = date.fromisoformat(target_date_text) if target_date_text else None
+        target_dates = parse_target_dates(target_dates_text)
     except ValueError:
-        flash("기준일 형식이 올바르지 않습니다.")
+        flash("기준일 형식이 올바르지 않습니다. 예: 2026-04-09, 2026-04-10")
         return redirect(url_for("index"))
 
     output_dir = Path(output_dir_text) if output_dir_text else DEFAULT_OUTPUT_DIR
@@ -280,36 +321,43 @@ def generate() -> Response | str:
         low_path = temp_dir / "low.xlsx"
         low_file.save(low_path)
 
-        if has_template_upload:
-            template_path = temp_dir / "worklog_set.xlsx"
-            template_file.save(template_path)
-        else:
-            template_path = DEFAULT_TEMPLATE_FILE
-            if not template_path.exists():
-                flash("기본 양식 worklog_set.xlsx가 앱 폴더에 없습니다.")
-                return redirect(url_for("index"))
-
-        temp_output_path = temp_dir / "worklog_result.xlsx"
-
         try:
-            summary = fill_worklog(
-                low_file=low_path,
-                template_file=template_path,
-                output_file=temp_output_path,
-                target_date=target_date,
-            )
+            templates = [
+                (
+                    "worklog_set1",
+                    uploaded_template_or_default(template_file_1, DEFAULT_TEMPLATE_FILES[0][1], temp_dir, "worklog_set1.xlsx"),
+                ),
+                (
+                    "worklog_set2",
+                    uploaded_template_or_default(template_file_2, DEFAULT_TEMPLATE_FILES[1][1], temp_dir, "worklog_set2.xlsx"),
+                ),
+            ]
+
+            output_files = []
+            target_date_labels = []
+            for template_label, template_path in templates:
+                temp_output_path = temp_dir / f"{template_label}_result.xlsx"
+                summary = fill_worklog_dates(
+                    low_file=low_path,
+                    template_file=template_path,
+                    output_file=temp_output_path,
+                    target_dates=target_dates,
+                )
+
+                date_part = "_".join(summary["target_dates"])
+                final_output_path = output_dir / f"{template_label}_result_{date_part}.xlsx"
+                shutil.copy2(temp_output_path, final_output_path)
+                output_files.append(str(final_output_path))
+                target_date_labels = summary["target_dates"]
         except Exception as exc:
             flash(f"처리 중 오류가 발생했습니다: {exc}")
             return redirect(url_for("index"))
 
-        final_output_path = output_dir / f"worklog_result_{summary['target_date']}.xlsx"
-        shutil.copy2(temp_output_path, final_output_path)
-
         return render_page(
             output_dir=output_dir,
             result={
-                "target_date": summary["target_date"],
-                "output_file": str(final_output_path),
+                "target_date": ", ".join(target_date_labels),
+                "output_files": output_files,
             },
         )
     finally:

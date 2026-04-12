@@ -5,6 +5,7 @@ output/
 uploads/
 .tmp_uploads/
 *.xlsx
+*.zip
 .env
 *.log
 *.spec

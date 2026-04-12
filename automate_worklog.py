@@ -8,11 +8,13 @@ from datetime import date, datetime
 from pathlib import Path
 
 from openpyxl import load_workbook
+from openpyxl.formula.translate import Translator
+from openpyxl.utils.cell import range_boundaries
 
 
 BASE_DIR = Path(__file__).resolve().parent
 DEFAULT_LOW_FILE = BASE_DIR / "low.xlsx"
-DEFAULT_TEMPLATE_FILE = BASE_DIR / "worklog_set.xlsx"
+DEFAULT_TEMPLATE_FILE = BASE_DIR / "worklog_set2.xlsx"
 DEFAULT_OUTPUT_DIR = BASE_DIR / "output"
 
 WORKLOG_SHEET_NAME = "4월"
@@ -44,6 +46,17 @@ SKIP_WORKLOG_ITEMS = {
 }
 
 MANUAL_PROGRAM_MAP = {
+    "사물·풍물(초급)": ["사물풍물(초급)"],
+    "사물·풍물(중급)": ["사물풍물(중급)"],
+    "스마트폰(기초1)": ["스마트폰(기초1반)"],
+    "스마트폰(기초2)": ["스마트폰(기초2반)"],
+    "스마트폰(기초3)": ["스마트폰(기초3반)"],
+    "스마트폰(어플활용)": ["스마트폰(어플)"],
+    "컴퓨터1단계": ["컴퓨터1단계(기초)"],
+    "컴퓨터2단계": ["컴퓨터2단계(인터넷)"],
+    "컴퓨터3단계": ["컴퓨터3단계(문서)"],
+    "컴퓨터4단계": ["컴퓨터4단계(사진영상)"],
+    "노인체육교실": ["상반기 노인체육교실"],
     "한글교실(초급1)": ["한글교실(초급1반)"],
     "한글교실(초급2)": ["한글교실(초급2반)"],
     "한글서예1반": ["한글서예1반(화)"],
@@ -65,6 +78,7 @@ def normalize_text(value: object) -> str:
 def normalize_key(value: object) -> str:
     text = normalize_text(value)
     text = re.sub(r"\s+", "", text)
+    text = text.replace("·", "")
     text = re.sub(r"\([^)]*\)$", "", text)
     text = text.replace("반", "")
     return text
@@ -157,37 +171,90 @@ def set_output_cell(cell, value: int) -> None:
     cell.value = value if value else None
 
 
-def copy_template_date_style(sheet, target_date: date) -> None:
-    cell = sheet["A3"]
+def copy_template_date_style(sheet, target_date: date, start_row: int = 1) -> None:
+    cell = sheet.cell(start_row + 2, 1)
     cell.value = datetime(target_date.year, target_date.month, target_date.day)
     cell.number_format = 'yyyy"년" m"월" d"일" dddd'
 
 
-def fill_worklog(low_file: Path, template_file: Path, output_file: Path, target_date: date | None) -> dict:
-    low_wb = load_workbook(low_file, data_only=True)
-    low_sheet = low_wb.active
-    date_columns = find_date_columns(low_sheet)
-    selected_date = target_date or latest_populated_date(low_sheet, date_columns)
+def copy_sheet_block(sheet, source_start_row: int, source_end_row: int, target_start_row: int) -> None:
+    row_offset = target_start_row - source_start_row
+    max_column = sheet.max_column
 
-    if selected_date not in date_columns:
-        available = ", ".join(day.isoformat() for day in sorted(date_columns))
-        raise ValueError(f"{selected_date.isoformat()} 날짜가 low.xlsx에 없습니다. 사용 가능 날짜: {available}")
+    for row in range(source_start_row, source_end_row + 1):
+        target_row = row + row_offset
+        source_dimension = sheet.row_dimensions[row]
+        target_dimension = sheet.row_dimensions[target_row]
+        target_dimension.height = source_dimension.height
+        target_dimension.hidden = source_dimension.hidden
 
-    daily_counts, available_programs = build_attendance_index(low_sheet, date_columns)
+        for col in range(1, max_column + 1):
+            source_cell = sheet.cell(row, col)
+            target_cell = sheet.cell(target_row, col)
+
+            target_cell.value = source_cell.value
+            if source_cell.data_type == "f" and source_cell.value:
+                target_cell.value = Translator(source_cell.value, origin=source_cell.coordinate).translate_formula(
+                    target_cell.coordinate
+                )
+
+            if source_cell.has_style:
+                target_cell._style = copy(source_cell._style)
+            if source_cell.number_format:
+                target_cell.number_format = source_cell.number_format
+            if source_cell.font:
+                target_cell.font = copy(source_cell.font)
+            if source_cell.fill:
+                target_cell.fill = copy(source_cell.fill)
+            if source_cell.border:
+                target_cell.border = copy(source_cell.border)
+            if source_cell.alignment:
+                target_cell.alignment = copy(source_cell.alignment)
+            if source_cell.protection:
+                target_cell.protection = copy(source_cell.protection)
+
+    for merged_range in list(sheet.merged_cells.ranges):
+        min_col, min_row, max_col, max_row = range_boundaries(str(merged_range))
+        if source_start_row <= min_row and max_row <= source_end_row:
+            sheet.merge_cells(
+                start_row=min_row + row_offset,
+                start_column=min_col,
+                end_row=max_row + row_offset,
+                end_column=max_col,
+            )
+
+
+def prepare_date_blocks(sheet, dates: list[date]) -> int:
+    block_height = sheet.max_row
+    if len(dates) <= 1:
+        return block_height
+
+    for index in range(1, len(dates)):
+        target_start_row = 1 + (block_height * index)
+        copy_sheet_block(sheet, 1, block_height, target_start_row)
+
+    return block_height
+
+
+def fill_sheet_block(
+    sheet,
+    selected_date: date,
+    block_start_row: int,
+    block_height: int,
+    date_columns: dict[date, int],
+    daily_counts,
+    available_programs: set[str],
+) -> dict:
     month_days = month_to_date_days(date_columns, selected_date)
-
-    template_wb = load_workbook(template_file)
-    if WORKLOG_SHEET_NAME not in template_wb.sheetnames:
-        raise ValueError(f"{template_file.name}에 '{WORKLOG_SHEET_NAME}' 시트가 없습니다.")
-
-    sheet = template_wb[WORKLOG_SHEET_NAME]
-    copy_template_date_style(sheet, selected_date)
+    copy_template_date_style(sheet, selected_date, block_start_row)
 
     matched_rows = []
     skipped_rows = []
     unmatched_rows = []
+    data_start_row = block_start_row + 6
+    data_end_row = block_start_row + block_height - 1
 
-    for row in range(7, sheet.max_row + 1):
+    for row in range(data_start_row, data_end_row + 1):
         item = normalize_text(sheet.cell(row, WORKLOG_ITEM_COL).value)
         if not item:
             continue
@@ -228,15 +295,77 @@ def fill_worklog(low_file: Path, template_file: Path, output_file: Path, target_
             }
         )
 
+    return {
+        "target_date": selected_date.isoformat(),
+        "matched_rows": matched_rows,
+        "skipped_rows": skipped_rows,
+        "unmatched_rows": unmatched_rows,
+    }
+
+
+def fill_worklog(low_file: Path, template_file: Path, output_file: Path, target_date: date | None) -> dict:
+    dates = [target_date] if target_date else None
+    return fill_worklog_dates(low_file, template_file, output_file, dates)
+
+
+def fill_worklog_dates(
+    low_file: Path,
+    template_file: Path,
+    output_file: Path,
+    target_dates: list[date] | None = None,
+) -> dict:
+    low_wb = load_workbook(low_file, data_only=True)
+    low_sheet = low_wb.active
+    date_columns = find_date_columns(low_sheet)
+    selected_dates = target_dates or [latest_populated_date(low_sheet, date_columns)]
+
+    missing_dates = [day for day in selected_dates if day not in date_columns]
+    if missing_dates:
+        available = ", ".join(day.isoformat() for day in sorted(date_columns))
+        missing = ", ".join(day.isoformat() for day in missing_dates)
+        raise ValueError(f"{missing} 날짜가 low.xlsx에 없습니다. 사용 가능 날짜: {available}")
+
+    daily_counts, available_programs = build_attendance_index(low_sheet, date_columns)
+
+    template_wb = load_workbook(template_file)
+    if WORKLOG_SHEET_NAME not in template_wb.sheetnames:
+        raise ValueError(f"{template_file.name}에 '{WORKLOG_SHEET_NAME}' 시트가 없습니다.")
+
+    sheet = template_wb[WORKLOG_SHEET_NAME]
+    block_height = prepare_date_blocks(sheet, selected_dates)
+
+    date_summaries = []
+    for index, selected_date in enumerate(selected_dates):
+        block_summary = fill_sheet_block(
+            sheet=sheet,
+            selected_date=selected_date,
+            block_start_row=1 + (block_height * index),
+            block_height=block_height,
+            date_columns=date_columns,
+            daily_counts=daily_counts,
+            available_programs=available_programs,
+        )
+        date_summaries.append(block_summary)
+
+    matched_rows = [row for summary in date_summaries for row in summary["matched_rows"]]
+    skipped_rows = [row for summary in date_summaries for row in summary["skipped_rows"]]
+    unmatched_rows = [row for summary in date_summaries for row in summary["unmatched_rows"]]
+
+    if len(selected_dates) > 1:
+        sheet.freeze_panes = None
+        sheet.print_area = None
+
     output_file.parent.mkdir(parents=True, exist_ok=True)
     template_wb.save(output_file)
 
     return {
-        "target_date": selected_date.isoformat(),
+        "target_date": selected_dates[0].isoformat(),
+        "target_dates": [day.isoformat() for day in selected_dates],
         "output_file": str(output_file),
         "matched_rows": matched_rows,
         "skipped_rows": skipped_rows,
         "unmatched_rows": unmatched_rows,
+        "date_summaries": date_summaries,
     }
 
 
