@@ -5,6 +5,8 @@ output/
 uploads/
 .tmp_uploads/
 *.xlsx
+!worklog_set1.xlsx
+!worklog_set2.xlsx
 *.zip
 .env
 *.log

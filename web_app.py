@@ -8,7 +8,7 @@ from datetime import date
 from pathlib import Path
 from threading import Timer
 
-from flask import Flask, Response, flash, redirect, render_template_string, request, url_for
+from flask import Flask, Response, flash, jsonify, redirect, render_template_string, request, url_for
 from werkzeug.utils import secure_filename
 
 from automate_worklog import fill_worklog_dates
@@ -21,6 +21,8 @@ DEFAULT_TEMPLATE_FILES = [
     ("worklog_set2", BASE_DIR / "worklog_set2.xlsx"),
 ]
 DEFAULT_OUTPUT_DIR = BASE_DIR / "output"
+VERSION_FILE = BASE_DIR / "version.txt"
+APP_VERSION = VERSION_FILE.read_text(encoding="utf-8").strip() if VERSION_FILE.exists() else "dev"
 
 app = Flask(__name__)
 app.secret_key = "worklog-local-secret"
@@ -37,7 +39,7 @@ PAGE = """
       :root {
         font-family: Arial, "Malgun Gothic", sans-serif;
         color: #18212b;
-        background: #f4f7f6;
+        background: #f3f7f8;
       }
 
       * {
@@ -49,9 +51,9 @@ PAGE = """
       }
 
       main {
-        width: min(980px, calc(100% - 32px));
+        width: min(1040px, calc(100% - 32px));
         margin: 0 auto;
-        padding: 40px 0;
+        padding: 42px 0;
       }
 
       h1 {
@@ -68,9 +70,9 @@ PAGE = """
 
       .layout {
         display: grid;
-        grid-template-columns: minmax(0, 1fr) 300px;
-        gap: 22px;
-        margin-top: 24px;
+        grid-template-columns: minmax(0, 1fr) 320px;
+        gap: 24px;
+        margin-top: 26px;
         align-items: start;
       }
 
@@ -80,10 +82,12 @@ PAGE = """
         border: 1px solid #dce5e2;
         border-radius: 8px;
         background: #ffffff;
-        padding: 22px;
+        padding: 24px;
+        box-shadow: 0 16px 45px rgba(31, 47, 62, 0.08);
       }
 
-      label {
+      label,
+      .field-group {
         display: grid;
         gap: 8px;
         margin-bottom: 18px;
@@ -102,6 +106,118 @@ PAGE = """
         background: #f8faf9;
       }
 
+      .calendar-panel {
+        border: 1px solid #cfe0dc;
+        border-radius: 8px;
+        background: linear-gradient(180deg, #ffffff, #f6fbfa);
+        padding: 14px;
+      }
+
+      .calendar-head {
+        display: grid;
+        grid-template-columns: 42px minmax(0, 1fr) 42px;
+        gap: 8px;
+        align-items: center;
+        margin-bottom: 12px;
+      }
+
+      .calendar-title {
+        text-align: center;
+        color: #162832;
+        font-size: 18px;
+        font-weight: 800;
+      }
+
+      .calendar-nav,
+      .calendar-day,
+      .calendar-clear {
+        border: 1px solid #c4d6d2;
+        border-radius: 8px;
+        background: #ffffff;
+        color: #20323d;
+      }
+
+      .calendar-nav {
+        min-height: 38px;
+        padding: 0;
+        font-size: 20px;
+      }
+
+      .calendar-grid,
+      .calendar-weekdays {
+        display: grid;
+        grid-template-columns: repeat(7, minmax(0, 1fr));
+        gap: 6px;
+      }
+
+      .calendar-weekdays {
+        margin-bottom: 6px;
+        color: #6a7780;
+        font-size: 12px;
+        font-weight: 800;
+        text-align: center;
+      }
+
+      .calendar-day {
+        aspect-ratio: 1;
+        min-width: 0;
+        padding: 0;
+        font-size: 14px;
+        font-weight: 700;
+      }
+
+      .calendar-day:hover {
+        background: #eaf4f1;
+      }
+
+      .calendar-day.is-muted {
+        color: #a2adb4;
+        background: #f7f9fa;
+      }
+
+      .calendar-day.is-today {
+        border-color: #14816e;
+      }
+
+      .calendar-day.is-selected {
+        border-color: #176f62;
+        background: #176f62;
+        color: #ffffff;
+      }
+
+      .calendar-selected {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 6px;
+        min-height: 34px;
+        margin-top: 12px;
+      }
+
+      .date-chip {
+        border-radius: 8px;
+        background: #e5f2ef;
+        padding: 6px 9px;
+        color: #17483f;
+        font-size: 13px;
+        font-weight: 700;
+      }
+
+      .calendar-actions {
+        display: grid;
+        grid-template-columns: 1fr;
+        margin-top: 10px;
+      }
+
+      .calendar-clear {
+        padding: 9px 12px;
+      }
+
+      .field-row {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) 132px;
+        gap: 10px;
+      }
+
       button {
         width: 100%;
         border: 0;
@@ -118,6 +234,16 @@ PAGE = """
         background: #0f6b5b;
       }
 
+      .secondary {
+        border: 1px solid #b7c9c5;
+        background: #ffffff;
+        color: #20323d;
+      }
+
+      .secondary:hover {
+        background: #edf4f3;
+      }
+
       .hint {
         margin-top: 8px;
         color: #687786;
@@ -131,6 +257,18 @@ PAGE = """
         background: #edf7f4;
         padding: 12px;
         color: #26443d;
+      }
+
+      .version {
+        display: inline-flex;
+        margin-top: 12px;
+        border: 1px solid #d5e3e0;
+        border-radius: 8px;
+        padding: 6px 10px;
+        background: #ffffff;
+        color: #566772;
+        font-size: 13px;
+        font-weight: 700;
       }
 
       .result {
@@ -163,6 +301,10 @@ PAGE = """
         h1 {
           font-size: 28px;
         }
+
+        .field-row {
+          grid-template-columns: 1fr;
+        }
       }
     </style>
   </head>
@@ -170,6 +312,7 @@ PAGE = """
     <main>
       <h1>업무일지 자동 생성</h1>
       <p>출결 파일만 올리면 기본 업무일지 양식으로 결과 엑셀을 만들어 저장합니다.</p>
+      <span class="version">버전 {{ app_version }}</span>
 
       {% with messages = get_flashed_messages() %}
         {% if messages %}
@@ -187,29 +330,43 @@ PAGE = """
             <span class="hint">이 파일만 선택하면 바로 결과를 만들 수 있습니다.</span>
           </label>
 
-          <label>
-            수정 양식 1 업로드
-            <input type="file" name="template_file_1" accept=".xlsx" />
-            <span class="hint">비워두면 앱 폴더의 worklog_set1.xlsx를 자동 사용합니다.</span>
-          </label>
+          <div class="field-group">
+            <span>기준일</span>
+            <input type="hidden" id="target-dates" name="target_dates" />
+            <div class="calendar-panel">
+              <div class="calendar-head">
+                <button type="button" class="calendar-nav" id="calendar-prev" aria-label="이전 달">‹</button>
+                <div class="calendar-title" id="calendar-title"></div>
+                <button type="button" class="calendar-nav" id="calendar-next" aria-label="다음 달">›</button>
+              </div>
+              <div class="calendar-weekdays" aria-hidden="true">
+                <span>일</span>
+                <span>월</span>
+                <span>화</span>
+                <span>수</span>
+                <span>목</span>
+                <span>금</span>
+                <span>토</span>
+              </div>
+              <div class="calendar-grid" id="calendar-grid"></div>
+              <div class="calendar-selected" id="calendar-selected">
+                <span class="date-chip">선택 없음</span>
+              </div>
+              <div class="calendar-actions">
+                <button type="button" class="calendar-clear" id="calendar-clear">선택 초기화</button>
+              </div>
+            </div>
+            <span class="hint">여러 날짜를 클릭해서 선택할 수 있습니다. 선택하지 않으면 출결 파일의 마지막 출석일을 사용합니다.</span>
+          </div>
 
-          <label>
-            수정 양식 2 업로드
-            <input type="file" name="template_file_2" accept=".xlsx" />
-            <span class="hint">비워두면 앱 폴더의 worklog_set2.xlsx를 자동 사용합니다.</span>
-          </label>
-
-          <label>
-            기준일
-            <input type="text" name="target_dates" placeholder="예: 2026-04-09, 2026-04-10" />
-            <span class="hint">하루만 쓰거나 쉼표로 여러 날짜를 입력하세요. 비워두면 마지막 출석일을 사용합니다.</span>
-          </label>
-
-          <label>
-            결과 저장 폴더
-            <input type="text" name="output_dir" value="{{ default_output_dir }}" />
-            <span class="hint">기본값은 앱 폴더 안의 output 폴더입니다.</span>
-          </label>
+          <div class="field-group">
+            <span>결과 저장 폴더</span>
+            <div class="field-row">
+              <input type="text" id="output-dir" name="output_dir" value="{{ default_output_dir }}" readonly />
+              <button type="button" class="secondary" id="choose-output-dir">폴더 선택</button>
+            </div>
+            <span class="hint">선택하지 않으면 앱 폴더 안의 output 폴더에 저장합니다.</span>
+          </div>
 
           <button type="submit">결과 엑셀 만들기</button>
         </form>
@@ -219,7 +376,7 @@ PAGE = """
           <ul>
             <li>보통은 low.xlsx만 올리면 됩니다.</li>
             <li>양식 1, 2는 앱 폴더에서 자동으로 찾습니다.</li>
-            <li>여러 날짜는 한 시트 아래로 이어 붙입니다.</li>
+            <li>기준일은 달력에서 여러 날짜를 클릭해 고릅니다.</li>
             <li>결과는 양식별 파일 2개로 저장됩니다.</li>
           </ul>
         </aside>
@@ -236,6 +393,160 @@ PAGE = """
         </section>
       {% endif %}
     </main>
+    <script>
+      const targetDates = document.querySelector("#target-dates");
+      const calendarTitle = document.querySelector("#calendar-title");
+      const calendarGrid = document.querySelector("#calendar-grid");
+      const calendarSelected = document.querySelector("#calendar-selected");
+      const calendarPrev = document.querySelector("#calendar-prev");
+      const calendarNext = document.querySelector("#calendar-next");
+      const calendarClear = document.querySelector("#calendar-clear");
+      const outputDir = document.querySelector("#output-dir");
+      const chooseOutputDir = document.querySelector("#choose-output-dir");
+
+      const selectedDates = new Set();
+      const today = new Date();
+      let visibleYear = today.getFullYear();
+      let visibleMonth = today.getMonth();
+
+      function toDateKey(year, month, day) {
+        const monthText = String(month + 1).padStart(2, "0");
+        const dayText = String(day).padStart(2, "0");
+        return `${year}-${monthText}-${dayText}`;
+      }
+
+      function renderSelectedDates() {
+        const dates = Array.from(selectedDates).sort();
+        targetDates.value = dates.join(",");
+        calendarSelected.innerHTML = "";
+
+        if (dates.length === 0) {
+          const emptyChip = document.createElement("span");
+          emptyChip.className = "date-chip";
+          emptyChip.textContent = "선택 없음";
+          calendarSelected.appendChild(emptyChip);
+          return;
+        }
+
+        for (const dateKey of dates) {
+          const chip = document.createElement("span");
+          chip.className = "date-chip";
+          chip.textContent = dateKey;
+          calendarSelected.appendChild(chip);
+        }
+      }
+
+      function renderCalendar() {
+        calendarTitle.textContent = `${visibleYear}년 ${visibleMonth + 1}월`;
+        calendarGrid.innerHTML = "";
+
+        const firstDay = new Date(visibleYear, visibleMonth, 1);
+        const startOffset = firstDay.getDay();
+        const daysInMonth = new Date(visibleYear, visibleMonth + 1, 0).getDate();
+        const prevMonthDays = new Date(visibleYear, visibleMonth, 0).getDate();
+        const todayKey = toDateKey(today.getFullYear(), today.getMonth(), today.getDate());
+
+        for (let index = 0; index < 42; index += 1) {
+          const dayButton = document.createElement("button");
+          dayButton.type = "button";
+          dayButton.className = "calendar-day";
+
+          let cellYear = visibleYear;
+          let cellMonth = visibleMonth;
+          let cellDay = index - startOffset + 1;
+
+          if (cellDay <= 0) {
+            cellMonth -= 1;
+            if (cellMonth < 0) {
+              cellMonth = 11;
+              cellYear -= 1;
+            }
+            cellDay = prevMonthDays + cellDay;
+            dayButton.classList.add("is-muted");
+          } else if (cellDay > daysInMonth) {
+            cellDay -= daysInMonth;
+            cellMonth += 1;
+            if (cellMonth > 11) {
+              cellMonth = 0;
+              cellYear += 1;
+            }
+            dayButton.classList.add("is-muted");
+          }
+
+          const dateKey = toDateKey(cellYear, cellMonth, cellDay);
+          dayButton.textContent = cellDay;
+          dayButton.dataset.date = dateKey;
+
+          if (dateKey === todayKey) {
+            dayButton.classList.add("is-today");
+          }
+
+          if (selectedDates.has(dateKey)) {
+            dayButton.classList.add("is-selected");
+          }
+
+          dayButton.addEventListener("click", () => {
+            if (selectedDates.has(dateKey)) {
+              selectedDates.delete(dateKey);
+            } else {
+              selectedDates.add(dateKey);
+            }
+            renderSelectedDates();
+            renderCalendar();
+          });
+
+          calendarGrid.appendChild(dayButton);
+        }
+      }
+
+      calendarPrev.addEventListener("click", () => {
+        visibleMonth -= 1;
+        if (visibleMonth < 0) {
+          visibleMonth = 11;
+          visibleYear -= 1;
+        }
+        renderCalendar();
+      });
+
+      calendarNext.addEventListener("click", () => {
+        visibleMonth += 1;
+        if (visibleMonth > 11) {
+          visibleMonth = 0;
+          visibleYear += 1;
+        }
+        renderCalendar();
+      });
+
+      calendarClear.addEventListener("click", () => {
+        selectedDates.clear();
+        renderSelectedDates();
+        renderCalendar();
+      });
+
+      renderSelectedDates();
+      renderCalendar();
+
+      chooseOutputDir.addEventListener("click", async () => {
+        chooseOutputDir.disabled = true;
+        chooseOutputDir.textContent = "선택 중";
+
+        try {
+          const response = await fetch("{{ url_for('select_output_dir') }}", { method: "POST" });
+          const data = await response.json();
+
+          if (data.path) {
+            outputDir.value = data.path;
+          } else if (data.error) {
+            alert(data.error);
+          }
+        } catch (error) {
+          alert("폴더 선택 창을 열 수 없습니다.");
+        } finally {
+          chooseOutputDir.disabled = false;
+          chooseOutputDir.textContent = "폴더 선택";
+        }
+      });
+    </script>
   </body>
 </html>
 """
@@ -257,12 +568,7 @@ def parse_target_dates(value: str) -> list[date] | None:
     return [date.fromisoformat(part) for part in parts]
 
 
-def uploaded_template_or_default(uploaded_file, default_path: Path, temp_dir: Path, file_name: str) -> Path:
-    if uploaded_file is not None and bool(uploaded_file.filename):
-        template_path = temp_dir / file_name
-        uploaded_file.save(template_path)
-        return template_path
-
+def default_template_path(default_path: Path) -> Path:
     if not default_path.exists():
         raise FileNotFoundError(f"기본 양식 {default_path.name}가 앱 폴더에 없습니다.")
 
@@ -270,7 +576,12 @@ def uploaded_template_or_default(uploaded_file, default_path: Path, temp_dir: Pa
 
 
 def render_page(result: dict | None = None, output_dir: Path = DEFAULT_OUTPUT_DIR) -> str:
-    return render_template_string(PAGE, default_output_dir=str(output_dir), result=result)
+    return render_template_string(
+        PAGE,
+        app_version=APP_VERSION,
+        default_output_dir=str(output_dir),
+        result=result,
+    )
 
 
 @app.get("/")
@@ -278,11 +589,29 @@ def index() -> str:
     return render_page()
 
 
+@app.post("/select-output-dir")
+def select_output_dir() -> Response:
+    try:
+        import tkinter as tk
+        from tkinter import filedialog
+
+        root = tk.Tk()
+        root.withdraw()
+        root.attributes("-topmost", True)
+        selected_dir = filedialog.askdirectory(
+            initialdir=str(DEFAULT_OUTPUT_DIR.parent),
+            title="결과 저장 폴더 선택",
+        )
+        root.destroy()
+    except Exception as exc:
+        return jsonify({"error": f"폴더 선택 창을 열 수 없습니다: {exc}"}), 500
+
+    return jsonify({"path": selected_dir})
+
+
 @app.post("/generate")
 def generate() -> Response | str:
     low_file = request.files.get("low_file")
-    template_file_1 = request.files.get("template_file_1")
-    template_file_2 = request.files.get("template_file_2")
     target_dates_text = (request.form.get("target_dates") or "").strip()
     output_dir_text = (request.form.get("output_dir") or "").strip()
 
@@ -290,13 +619,7 @@ def generate() -> Response | str:
         flash("출결 파일 low.xlsx를 선택해주세요.")
         return redirect(url_for("index"))
 
-    has_template_upload_1 = template_file_1 is not None and bool(template_file_1.filename)
-    has_template_upload_2 = template_file_2 is not None and bool(template_file_2.filename)
-    if (
-        not allowed_xlsx(low_file)
-        or (has_template_upload_1 and not allowed_xlsx(template_file_1))
-        or (has_template_upload_2 and not allowed_xlsx(template_file_2))
-    ):
+    if not allowed_xlsx(low_file):
         flash("xlsx 파일만 사용할 수 있습니다.")
         return redirect(url_for("index"))
 
@@ -325,11 +648,11 @@ def generate() -> Response | str:
             templates = [
                 (
                     "worklog_set1",
-                    uploaded_template_or_default(template_file_1, DEFAULT_TEMPLATE_FILES[0][1], temp_dir, "worklog_set1.xlsx"),
+                    default_template_path(DEFAULT_TEMPLATE_FILES[0][1]),
                 ),
                 (
                     "worklog_set2",
-                    uploaded_template_or_default(template_file_2, DEFAULT_TEMPLATE_FILES[1][1], temp_dir, "worklog_set2.xlsx"),
+                    default_template_path(DEFAULT_TEMPLATE_FILES[1][1]),
                 ),
             ]
 

@@ -1,1 +1,1 @@
-web: gunicorn web_app:app
+web: streamlit run streamlit_app.py --server.address=0.0.0.0 --server.port=$PORT

@@ -1,101 +1,51 @@
-# 업무일지 자동화 툴
+# 업무일지 자동 생성 도구
 
-업무일지를 빠르게 작성하고 복사할 수 있는 브라우저 기반 도구입니다.
+출결 엑셀 파일을 업로드하면 기본 업무일지 양식 2개에 기준일별 실적을 채워 결과 엑셀을 생성하는 Streamlit 앱입니다.
 
-## 실행 방법
-
-`index.html` 파일을 브라우저로 열면 바로 사용할 수 있습니다.
-
-## 주요 기능
-
-- 날짜와 작성자 입력
-- 오늘 한 일 정리
-- 이슈와 막힌 점 정리
-- 내일 할 일 정리
-- 생성된 업무일지 복사
-
-## 다음에 추가하면 좋은 기능
-
-- 작성 내용 자동 저장
-- 일지 파일 다운로드
-- 템플릿 여러 개 관리
-- 팀 공유용 형식 추가
-
-## 엑셀 자동화 실행
-
-필요 패키지를 설치합니다.
+## 로컬 실행
 
 ```powershell
 python -m pip install -r requirements.txt
+python -m streamlit run streamlit_app.py
 ```
 
-기본 실행은 `low.xlsx`에서 가장 마지막 날짜를 찾아 `worklog_set.xlsx`의 4월 시트에 입력합니다.
-
-```powershell
-python automate_worklog.py
-```
-
-특정 날짜로 실행할 수도 있습니다.
-
-```powershell
-python automate_worklog.py --date 2026-04-11
-```
-
-결과 파일과 실행 리포트는 `output` 폴더에 저장됩니다.
-
-## 웹앱 실행
-
-브라우저에서 파일을 업로드하고 결과 엑셀을 바로 다운로드하려면 아래 명령을 실행합니다.
-
-```powershell
-python web_app.py
-```
-
-실행 후 브라우저에서 아래 주소로 접속합니다.
+브라우저에서 아래 주소로 접속합니다.
 
 ```text
-http://127.0.0.1:5000
+http://localhost:8501
 ```
 
-배포 서비스에서는 `Procfile`의 명령으로 실행할 수 있습니다.
+## 웹 배포
 
-## 로컬 업무용 실행
-
-Python이 설치된 PC에서는 `start_app.bat`를 더블클릭하면 앱이 실행되고 브라우저가 열립니다.
-
-기본 양식 파일은 앱 폴더의 `worklog_set1.xlsx`, `worklog_set2.xlsx`를 자동으로 사용합니다. 평소에는 출결 파일만 업로드하면 됩니다.
-
-결과 파일은 기본적으로 `output` 폴더에 저장됩니다.
-
-기준일은 하루만 입력하거나 여러 날짜를 쉼표로 입력할 수 있습니다.
+Streamlit Community Cloud에 배포할 때는 다음 값으로 설정합니다.
 
 ```text
-2026-04-09
-2026-04-09, 2026-04-10
+Repository: ororagi-star/worklog-automation-tool
+Branch: main
+Main file path: streamlit_app.py
 ```
 
-여러 날짜를 입력하면 날짜별 파일을 따로 만들지 않고, 각 결과 파일의 한 시트 아래로 날짜별 양식을 이어 붙입니다.
-
-예를 들어 날짜 2개를 입력하면 아래처럼 결과 파일 2개가 생성됩니다.
+앱은 저장소에 포함된 기본 양식 파일을 사용합니다.
 
 ```text
-worklog_set1_result_2026-04-09_2026-04-10.xlsx
-worklog_set2_result_2026-04-09_2026-04-10.xlsx
+worklog_set1.xlsx
+worklog_set2.xlsx
 ```
 
-## EXE 만들기
+사용자가 업로드하는 `low.xlsx`는 저장소에 포함하지 않습니다.
 
-Python이 없는 PC에서 쓰려면 `build_exe.bat`를 실행해 exe 파일을 만듭니다.
+## EXE 빌드
 
-빌드가 끝나면 `dist` 폴더에 아래 파일을 같이 둡니다.
+Windows 배포용 EXE와 ZIP을 만들려면 아래 파일을 실행합니다.
 
 ```text
-dist/
-└─ WorklogAutomation/
-   ├─ WorklogAutomation.exe
-   ├─ worklog_set1.xlsx
-   ├─ worklog_set2.xlsx
-   └─ _internal/
+build_exe.bat
 ```
 
-다른 PC에는 `dist/WorklogAutomation` 폴더를 통째로 전달하면 됩니다.
+빌드 결과는 버전 번호가 붙은 ZIP 파일로 생성됩니다.
+
+```text
+dist/WorklogAutomation_yyyyMMdd_HHmmss.zip
+```
+
+다른 PC에는 EXE 하나만 보내지 말고 ZIP 파일을 보내세요. 압축을 푼 뒤 EXE를 실행하면 됩니다.
