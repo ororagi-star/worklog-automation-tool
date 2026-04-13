@@ -3,6 +3,7 @@ from __future__ import annotations
 import shutil
 import sys
 import tempfile
+import zipfile
 from datetime import date
 from io import BytesIO
 from pathlib import Path
@@ -151,6 +152,28 @@ def generate_files(low_data: bytes, selected_dates: list[date]) -> list[tuple[st
     return output_files
 
 
+def make_result_zip(output_files: list[tuple[str, bytes]]) -> tuple[str, bytes]:
+    if not output_files:
+        raise ValueError("압축할 결과 파일이 없습니다.")
+
+    date_part = ""
+    first_name = output_files[0][0]
+    if "_result_" in first_name:
+        date_part = first_name.rsplit("_result_", 1)[1].removesuffix(".xlsx")
+
+    zip_name = f"worklog_results_{date_part or 'download'}.zip"
+    zip_buffer = BytesIO()
+    with zipfile.ZipFile(zip_buffer, "w", compression=zipfile.ZIP_DEFLATED) as zip_file:
+        for output_name, output_data in output_files:
+            zip_file.writestr(output_name, output_data)
+
+    return zip_name, zip_buffer.getvalue()
+
+
+if "result_zip" not in st.session_state:
+    st.session_state.result_zip = None
+
+
 st.markdown(
     f"""
     <section class="hero">
@@ -201,7 +224,7 @@ with right:
     st.write("1. 출결 파일을 올립니다.")
     st.write("2. 기준일을 하나 이상 선택합니다.")
     st.write("3. 결과 엑셀 만들기를 누릅니다.")
-    st.write("4. 생성된 파일 2개를 내려받습니다.")
+    st.write("4. 결과 ZIP 파일 하나를 내려받습니다.")
     st.info("기본 양식은 웹앱에 포함된 worklog_set1.xlsx, worklog_set2.xlsx를 사용합니다.")
 
 st.divider()
@@ -216,15 +239,25 @@ if st.button("결과 엑셀 만들기", type="primary", use_container_width=True
     except Exception as exc:
         st.error(f"처리 중 오류가 발생했습니다: {exc}")
     else:
-        st.success("생성이 완료되었습니다.")
-        cols = st.columns(2)
-        for index, (output_name, output_data) in enumerate(output_files):
-            with cols[index % 2]:
-                st.metric(f"결과 파일 {index + 1}", output_name)
-                st.download_button(
-                    label="다운로드",
-                    data=output_data,
-                    file_name=output_name,
-                    mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-                    use_container_width=True,
-                )
+        zip_name, zip_data = make_result_zip(output_files)
+        st.session_state.result_zip = {
+            "name": zip_name,
+            "data": zip_data,
+            "files": [output_name for output_name, _ in output_files],
+        }
+
+if st.session_state.result_zip:
+    result_zip = st.session_state.result_zip
+    st.success("생성이 완료되었습니다.")
+    st.caption("ZIP 파일 안에 결과 엑셀 2개가 들어 있습니다.")
+    for output_name in result_zip["files"]:
+        st.write(f"- {output_name}")
+
+    st.download_button(
+        label="결과 ZIP 다운로드",
+        data=result_zip["data"],
+        file_name=result_zip["name"],
+        mime="application/zip",
+        type="primary",
+        use_container_width=True,
+    )
