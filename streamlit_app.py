@@ -19,8 +19,6 @@ DEFAULT_TEMPLATE_FILES = [
     ("worklog_set1", BASE_DIR / "worklog_set1.xlsx"),
     ("worklog_set2", BASE_DIR / "worklog_set2.xlsx"),
 ]
-VERSION_FILE = BASE_DIR / "version.txt"
-APP_VERSION = VERSION_FILE.read_text(encoding="utf-8").strip() if VERSION_FILE.exists() else "dev"
 PHONE_PATTERN = re.compile(
     r"(?<!\d)(?:01[016789][-\s.]?\d{3,4}[-\s.]?\d{4}|0(?:2|[3-6][1-5]|70|50[2-8])[-\s.]?\d{3,4}[-\s.]?\d{4})(?!\d)"
 )
@@ -81,18 +79,6 @@ st.markdown(
         letter-spacing: 0;
       }
 
-      .version-pill {
-        display: inline-flex;
-        margin-top: 12px;
-        border: 1px solid #d8e1df;
-        border-radius: 8px;
-        padding: 5px 9px;
-        background: #ffffff;
-        color: #60707a;
-        font-size: 12px;
-        font-weight: 600;
-      }
-
       .section-title {
         margin: 0 0 6px;
         color: #1b2830;
@@ -105,14 +91,6 @@ st.markdown(
         color: #66737d;
         font-size: 13px;
         line-height: 1.5;
-      }
-
-      .work-card {
-        border: 1px solid #dce4e2;
-        border-radius: 8px;
-        background: #ffffff;
-        padding: 22px;
-        box-shadow: 0 10px 28px rgba(31, 47, 62, 0.06);
       }
 
       .privacy-note {
@@ -320,19 +298,17 @@ if "result_zip" not in st.session_state:
 
 
 st.markdown(
-    f"""
+    """
     <section class="hero">
       <p class="eyebrow">WORKLOG AUTOMATION</p>
       <h1>업무일지 자동 생성</h1>
       <p>출결 파일을 올리고 기준일을 선택하면 결과 엑셀 2개를 ZIP으로 내려받을 수 있습니다.</p>
-      <span class="version-pill">버전 {APP_VERSION}</span>
     </section>
     """,
     unsafe_allow_html=True,
 )
 
 with st.container():
-    st.markdown("<div class='work-card'>", unsafe_allow_html=True)
     st.markdown("<h2 class='section-title'>출결 파일</h2>", unsafe_allow_html=True)
     st.markdown("<p class='section-note'>원본은 저장하지 않으며, 전화번호가 있으면 삭제 동의 후 처리합니다.</p>", unsafe_allow_html=True)
     low_file = st.file_uploader("출결 파일 업로드", type=["xlsx"], label_visibility="collapsed")
@@ -430,5 +406,3 @@ with st.container():
             type="primary",
             use_container_width=True,
         )
-
-    st.markdown("</div>", unsafe_allow_html=True)
