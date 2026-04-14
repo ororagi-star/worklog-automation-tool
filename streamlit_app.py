@@ -56,7 +56,7 @@ st.markdown(
 
       .hero h1 {
         margin: 0 0 12px;
-        color: #141f27;
+        color: #0f172a;
         font-size: 32px;
         font-weight: 800;
         line-height: 1.3;
@@ -65,14 +65,14 @@ st.markdown(
       .hero p {
         margin: 0;
         max-width: 640px;
-        color: #4a5762;
+        color: #475569;
         font-size: 15px;
         line-height: 1.6;
       }
 
       .eyebrow {
         margin: 0 0 8px;
-        color: #0f766e;
+        color: #0d9488;
         font-size: 13px;
         font-weight: 800;
         letter-spacing: 0.5px;
@@ -80,32 +80,32 @@ st.markdown(
 
       .section-title {
         margin: 0 0 6px;
-        color: #1b2830;
+        color: #1e293b;
         font-size: 18px;
         font-weight: 700;
       }
 
       .section-note {
         margin: 0 0 12px;
-        color: #5b6973;
+        color: #64748b;
         font-size: 14px;
         line-height: 1.5;
       }
 
       .field-label {
         margin: 0 0 8px;
-        color: #1b2830;
+        color: #1e293b;
         font-size: 16px;
         font-weight: 700;
         line-height: 1.4;
       }
 
       .privacy-note {
-        border: 1px solid #dbe7e4;
+        border: 1px solid #e2e8f0;
         border-radius: 8px;
-        background: #f4faf8;
+        background: #f8fafc;
         padding: 12px 14px;
-        color: #40555e;
+        color: #334155;
         font-size: 14px;
         line-height: 1.5;
       }
@@ -113,29 +113,29 @@ st.markdown(
 
       .result-panel {
         margin-top: 18px;
-        border: 1px solid #cde2dc;
+        border: 1px solid #ccfbf1;
         border-radius: 8px;
-        background: #f0f8f6;
+        background: #f0fdfa;
         padding: 16px;
       }
 
       .result-panel h3 {
         margin: 0 0 6px;
-        color: #153d37;
+        color: #115e59;
         font-size: 18px;
         font-weight: 800;
       }
 
       .result-panel p {
         margin: 0 0 10px;
-        color: #47605b;
+        color: #134e4a;
         font-size: 14px;
       }
 
       .file-list {
         margin: 0;
         padding-left: 18px;
-        color: #234b45;
+        color: #0f766e;
         font-size: 14px;
         line-height: 1.7;
       }
@@ -156,10 +156,10 @@ st.markdown(
       label,
       div[data-testid="stWidgetLabel"] p,
       div[data-testid="stWidgetLabel"] {
-        font-size: 16px;
-        color: #1b2830;
-        font-weight: 700;
-        line-height: 1.4;
+        font-size: 16px !important;
+        color: #1e293b !important;
+        font-weight: 700 !important;
+        line-height: 1.4 !important;
       }
 
       .stMarkdown,
@@ -168,12 +168,41 @@ st.markdown(
         font-size: 14px;
       }
 
-      .stButton > button,
+      .stButton > button {
+        border-radius: 8px;
+        min-height: 44px;
+        font-size: 16px;
+        font-weight: 700;
+        background-color: #334155 !important;
+        color: white !important;
+        border-color: #334155 !important;
+      }
+      .stButton > button:hover:not(:disabled) {
+        background-color: #1e293b !important;
+        border-color: #1e293b !important;
+        color: white !important;
+      }
+      .stButton > button:disabled,
+      .stDownloadButton > button:disabled {
+        background-color: #e2e8f0 !important;
+        color: #94a3b8 !important;
+        border-color: #cbd5e1 !important;
+      }
+
       .stDownloadButton > button {
         border-radius: 8px;
         min-height: 44px;
         font-size: 16px;
         font-weight: 700;
+        background-color: #0d9488 !important;
+        color: white !important;
+        border-color: #0d9488 !important;
+        width: 100%;
+      }
+      .stDownloadButton > button:hover:not(:disabled) {
+        background-color: #0f766e !important;
+        border-color: #0f766e !important;
+        color: white !important;
       }
 
       div[data-baseweb="select"] {
