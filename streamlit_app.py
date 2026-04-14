@@ -319,7 +319,7 @@ st.markdown(
 
 with st.container():
     st.markdown("<p class='field-label'>출결 파일</p>", unsafe_allow_html=True)
-    st.markdown("<p class='section-note'>원본은 저장하지 않으며, 전화번호가 있으면 삭제 동의 후 처리합니다.</p>", unsafe_allow_html=True)
+    st.markdown("<p class='section-note'>업로드된 원본 파일은 서버에 저장되지 않으며, 포함된 전화번호는 개인정보 보호를 위해 자동 삭제됩니다.</p>", unsafe_allow_html=True)
     low_file = st.file_uploader("출결 파일 업로드", type=["xlsx"], label_visibility="collapsed")
 
     low_data: bytes | None = None
