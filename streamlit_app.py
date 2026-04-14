@@ -82,14 +82,14 @@ st.markdown(
       .section-title {
         margin: 0 0 6px;
         color: #1b2830;
-        font-size: 18px;
-        font-weight: 800;
+        font-size: 15px;
+        font-weight: 700;
       }
 
       .section-note {
-        margin: 0 0 14px;
+        margin: 0 0 12px;
         color: #66737d;
-        font-size: 13px;
+        font-size: 12px;
         line-height: 1.5;
       }
 
