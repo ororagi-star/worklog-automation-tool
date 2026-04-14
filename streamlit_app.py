@@ -55,9 +55,9 @@ st.markdown(
       }
 
       .hero h1 {
-        margin: 0 0 8px;
+        margin: 0 0 12px;
         color: #141f27;
-        font-size: 28px;
+        font-size: 32px;
         font-weight: 800;
         line-height: 1.3;
       }
@@ -65,37 +65,37 @@ st.markdown(
       .hero p {
         margin: 0;
         max-width: 640px;
-        color: #66727c;
-        font-size: 12px;
-        line-height: 1.55;
+        color: #4a5762;
+        font-size: 15px;
+        line-height: 1.6;
       }
 
       .eyebrow {
         margin: 0 0 8px;
         color: #0f766e;
-        font-size: 11px;
-        font-weight: 700;
-        letter-spacing: 0;
+        font-size: 13px;
+        font-weight: 800;
+        letter-spacing: 0.5px;
       }
 
       .section-title {
         margin: 0 0 6px;
         color: #1b2830;
-        font-size: 13px;
+        font-size: 18px;
         font-weight: 700;
       }
 
       .section-note {
         margin: 0 0 12px;
-        color: #66737d;
-        font-size: 12px;
+        color: #5b6973;
+        font-size: 14px;
         line-height: 1.5;
       }
 
       .field-label {
         margin: 0 0 8px;
         color: #1b2830;
-        font-size: 13px;
+        font-size: 16px;
         font-weight: 700;
         line-height: 1.4;
       }
@@ -106,7 +106,7 @@ st.markdown(
         background: #f4faf8;
         padding: 12px 14px;
         color: #40555e;
-        font-size: 12px;
+        font-size: 14px;
         line-height: 1.5;
       }
 
@@ -132,21 +132,21 @@ st.markdown(
       .result-panel h3 {
         margin: 0 0 6px;
         color: #153d37;
-        font-size: 15px;
+        font-size: 18px;
         font-weight: 800;
       }
 
       .result-panel p {
         margin: 0 0 10px;
         color: #47605b;
-        font-size: 13px;
+        font-size: 14px;
       }
 
       .file-list {
         margin: 0;
         padding-left: 18px;
         color: #234b45;
-        font-size: 13px;
+        font-size: 14px;
         line-height: 1.7;
       }
 
@@ -168,14 +168,14 @@ st.markdown(
       .stAlert,
       .stCaptionContainer,
       div[data-testid="stWidgetLabel"] {
-        font-size: 12px;
+        font-size: 14px;
       }
 
       .stButton > button,
       .stDownloadButton > button {
         border-radius: 8px;
         min-height: 44px;
-        font-size: 13px;
+        font-size: 16px;
         font-weight: 700;
       }
 
@@ -376,22 +376,40 @@ with st.container():
     st.write("")
 
     can_generate = low_data is not None
-    button_label = "결과 ZIP 만들기" if can_generate else "출결 파일을 먼저 올려주세요"
-    if st.button(button_label, type="primary", use_container_width=True, disabled=not can_generate):
-        try:
-            output_files = generate_files(
-                low_data=low_data or b"",
-                selected_dates=sorted(selected_dates),
-            )
-        except Exception as exc:
-            st.error(f"처리 중 오류가 발생했습니다: {exc}")
-        else:
-            zip_name, zip_data = make_result_zip(output_files)
-            st.session_state.result_zip = {
-                "name": zip_name,
-                "data": zip_data,
-                "files": [output_name for output_name, _ in output_files],
-            }
+    button_label = "생성" if can_generate else "출결 파일을 먼저 올려주세요"
+    col1, col2 = st.columns(2)
+
+    with col1:
+        if st.button(button_label, type="primary", use_container_width=True, disabled=not can_generate):
+            try:
+                output_files = generate_files(
+                    low_data=low_data or b"",
+                    selected_dates=sorted(selected_dates),
+                )
+            except Exception as exc:
+                st.error(f"처리 중 오류가 발생했습니다: {exc}")
+            else:
+                zip_name, zip_data = make_result_zip(output_files)
+                st.session_state.result_zip = {
+                    "name": zip_name,
+                    "data": zip_data,
+                    "files": [output_name for output_name, _ in output_files],
+                }
+
+    with col2:
+        is_ready = st.session_state.result_zip is not None
+        download_data = st.session_state.result_zip["data"] if is_ready else b""
+        download_name = st.session_state.result_zip["name"] if is_ready else "download.zip"
+        
+        st.download_button(
+            label="다운로드",
+            data=download_data,
+            file_name=download_name,
+            mime="application/zip",
+            type="primary",
+            use_container_width=True,
+            disabled=not is_ready,
+        )
 
     if st.session_state.result_zip:
         result_zip = st.session_state.result_zip
@@ -405,13 +423,4 @@ with st.container():
             </section>
             """,
             unsafe_allow_html=True,
-        )
-
-        st.download_button(
-            label="결과 ZIP 다운로드",
-            data=result_zip["data"],
-            file_name=result_zip["name"],
-            mime="application/zip",
-            type="primary",
-            use_container_width=True,
         )
