@@ -329,28 +329,12 @@ with st.container():
         try:
             raw_low_data = uploaded_bytes(low_file)
             sanitized_low_data, phone_count = sanitize_phone_numbers(raw_low_data)
-            privacy_confirmed = True
-
-            if phone_count:
-                st.warning(
-                    f"전화번호로 보이는 값 {phone_count}개가 있습니다. 개인정보 보호를 위해 삭제 후 진행해야 합니다."
-                )
-                privacy_confirmed = st.checkbox(
-                    "예, 전화번호를 삭제한 파일로 업무일지를 생성합니다.",
-                    help="원본 파일은 저장하지 않고, 전화번호가 제거된 사본으로만 처리합니다.",
-                )
-
-                if privacy_confirmed:
-                    st.success("전화번호 제거가 완료되었습니다. 개인정보가 삭제된 사본으로 처리됩니다.")
-                else:
-                    st.error("취소 시 작업할 수 없습니다. 전화번호 삭제에 동의해야 결과를 생성할 수 있습니다.")
-
-            low_data = sanitized_low_data if privacy_confirmed else None
-            if low_data is None:
-                available_dates = []
-                default_date = None
-            else:
-                available_dates, default_date = available_dates_from_low(low_data)
+            low_data = sanitized_low_data
+            available_dates, default_date = available_dates_from_low(low_data)
+            
+            if phone_count > 0:
+                st.info(f"🔒 개인정보 보호를 위해 엑셀 내 전화번호(추정) {phone_count}개를 자동 삭제했습니다.")
+                
         except Exception as exc:
             st.error(f"출결 파일을 읽을 수 없습니다: {exc}")
             available_dates = []
@@ -367,8 +351,8 @@ with st.container():
                 help="여러 날짜를 선택할 수 있습니다. 결과 생성은 아래 버튼을 눌렀을 때만 실행됩니다.",
             )
             render_selected_dates(selected_dates)
-        else:
-            st.info("출결 파일에서 날짜 컬럼을 찾으면 작업일 선택이 표시됩니다.")
+        elif low_data is not None:
+            st.warning("업로드된 파일에서 유효한 날짜 상태를 찾지 못했습니다. 엑셀 양식을 확인해 주세요.")
     else:
         st.info("먼저 출결 파일을 올려주세요.")
 
