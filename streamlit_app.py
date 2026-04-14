@@ -358,6 +358,8 @@ with st.container():
             available_dates = []
             default_date = None
 
+        st.markdown("<hr style='margin: 32px 0 24px; border: none; border-top: 1px solid #e2e8f0;' />", unsafe_allow_html=True)
+
         if available_dates:
             default_selection = [default_date] if default_date else []
             st.markdown("<p class='field-label'>생성 대상일</p>", unsafe_allow_html=True)
