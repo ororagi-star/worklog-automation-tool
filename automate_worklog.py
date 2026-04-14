@@ -168,7 +168,7 @@ def month_to_date_days(date_columns: dict[date, int], target_date: date) -> list
 
 
 def set_output_cell(cell, value: int) -> None:
-    cell.value = value if value else None
+    cell.value = value
 
 
 def copy_template_date_style(sheet, target_date: date, start_row: int = 1) -> None:
