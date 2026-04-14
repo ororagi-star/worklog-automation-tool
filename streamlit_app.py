@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import re
-import sys
 import tempfile
 import zipfile
 from datetime import date
@@ -14,7 +13,7 @@ from openpyxl import load_workbook
 from automate_worklog import fill_worklog_dates, find_date_columns, latest_populated_date
 
 
-BASE_DIR = Path(sys.executable).resolve().parent if getattr(sys, "frozen", False) else Path(__file__).resolve().parent
+BASE_DIR = Path(__file__).resolve().parent
 DEFAULT_TEMPLATE_FILES = [
     ("worklog_set1", BASE_DIR / "worklog_set1.xlsx"),
     ("worklog_set2", BASE_DIR / "worklog_set2.xlsx"),

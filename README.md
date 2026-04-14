@@ -33,19 +33,3 @@ worklog_set2.xlsx
 ```
 
 사용자가 업로드하는 `low.xlsx`는 저장소에 포함하지 않습니다.
-
-## EXE 빌드
-
-Windows 배포용 EXE와 ZIP을 만들려면 아래 파일을 실행합니다.
-
-```text
-build_exe.bat
-```
-
-빌드 결과는 버전 번호가 붙은 ZIP 파일로 생성됩니다.
-
-```text
-dist/WorklogAutomation_yyyyMMdd_HHmmss.zip
-```
-
-다른 PC에는 EXE 하나만 보내지 말고 ZIP 파일을 보내세요. 압축을 푼 뒤 EXE를 실행하면 됩니다.
