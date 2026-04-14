@@ -52,7 +52,7 @@ st.markdown(
       }
 
       .hero {
-        margin-bottom: 30px;
+        margin-bottom: 28px;
       }
 
       .hero h1 {
@@ -82,7 +82,7 @@ st.markdown(
       .section-title {
         margin: 0 0 6px;
         color: #1b2830;
-        font-size: 15px;
+        font-size: 14px;
         font-weight: 700;
       }
 
@@ -91,6 +91,14 @@ st.markdown(
         color: #66737d;
         font-size: 12px;
         line-height: 1.5;
+      }
+
+      .field-label {
+        margin: 0 0 8px;
+        color: #1b2830;
+        font-size: 14px;
+        font-weight: 700;
+        line-height: 1.4;
       }
 
       .privacy-note {
@@ -309,7 +317,7 @@ st.markdown(
 )
 
 with st.container():
-    st.markdown("<h2 class='section-title'>출결 파일</h2>", unsafe_allow_html=True)
+    st.markdown("<p class='field-label'>출결 파일</p>", unsafe_allow_html=True)
     st.markdown("<p class='section-note'>원본은 저장하지 않으며, 전화번호가 있으면 삭제 동의 후 처리합니다.</p>", unsafe_allow_html=True)
     low_file = st.file_uploader("출결 파일 업로드", type=["xlsx"], label_visibility="collapsed")
 
@@ -349,7 +357,7 @@ with st.container():
 
         if available_dates:
             default_selection = [default_date] if default_date else []
-            st.markdown("<h2 class='section-title'>기준일</h2>", unsafe_allow_html=True)
+            st.markdown("<p class='field-label'>기준일</p>", unsafe_allow_html=True)
             selected_dates = st.multiselect(
                 "기준일",
                 options=available_dates,
