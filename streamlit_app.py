@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-import shutil
+import re
 import sys
 import tempfile
 import zipfile
@@ -21,6 +21,9 @@ DEFAULT_TEMPLATE_FILES = [
 ]
 VERSION_FILE = BASE_DIR / "version.txt"
 APP_VERSION = VERSION_FILE.read_text(encoding="utf-8").strip() if VERSION_FILE.exists() else "dev"
+PHONE_PATTERN = re.compile(
+    r"(?<!\d)(?:01[016789][-\s.]?\d{3,4}[-\s.]?\d{4}|0(?:2|[3-6][1-5]|70|50[2-8])[-\s.]?\d{3,4}[-\s.]?\d{4})(?!\d)"
+)
 
 
 st.set_page_config(
@@ -103,6 +106,40 @@ def uploaded_bytes(uploaded_file) -> bytes:
     if not data:
         raise ValueError("업로드한 파일이 비어 있습니다.")
     return data
+
+
+def sanitize_phone_numbers(low_data: bytes) -> tuple[bytes, int]:
+    workbook = load_workbook(BytesIO(low_data))
+    removed_count = 0
+
+    for sheet in workbook.worksheets:
+        for row in sheet.iter_rows():
+            for cell in row:
+                value = cell.value
+
+                if isinstance(value, (int, float)) and float(value).is_integer():
+                    digits = str(int(value))
+                    candidates = [digits, f"0{digits}"]
+                    if any(PHONE_PATTERN.fullmatch(candidate) for candidate in candidates):
+                        cell.value = None
+                        removed_count += 1
+                    continue
+
+                if not isinstance(value, str):
+                    continue
+
+                matches = PHONE_PATTERN.findall(value)
+                if not matches:
+                    continue
+
+                cleaned_value = PHONE_PATTERN.sub("", value)
+                cleaned_value = re.sub(r"\s{2,}", " ", cleaned_value).strip(" -_/,.")
+                cell.value = cleaned_value or None
+                removed_count += len(matches)
+
+    output = BytesIO()
+    workbook.save(output)
+    return output.getvalue(), removed_count
 
 
 def available_dates_from_low(low_data: bytes) -> tuple[list[date], date | None]:
@@ -196,8 +233,30 @@ with left:
 
     if low_file is not None:
         try:
-            low_data = uploaded_bytes(low_file)
-            available_dates, default_date = available_dates_from_low(low_data)
+            raw_low_data = uploaded_bytes(low_file)
+            sanitized_low_data, phone_count = sanitize_phone_numbers(raw_low_data)
+            privacy_confirmed = True
+
+            if phone_count:
+                st.warning(
+                    f"전화번호로 보이는 값 {phone_count}개가 있습니다. 개인정보 보호를 위해 삭제 후 진행해야 합니다."
+                )
+                privacy_confirmed = st.checkbox(
+                    "예, 전화번호를 삭제한 파일로 업무일지를 생성합니다.",
+                    help="원본 파일은 저장하지 않고, 전화번호가 제거된 사본으로만 처리합니다.",
+                )
+
+                if privacy_confirmed:
+                    st.success("전화번호 제거가 완료되었습니다. 개인정보가 삭제된 사본으로 처리됩니다.")
+                else:
+                    st.error("취소 시 작업할 수 없습니다. 전화번호 삭제에 동의해야 결과를 생성할 수 있습니다.")
+
+            low_data = sanitized_low_data if privacy_confirmed else None
+            if low_data is None:
+                available_dates = []
+                default_date = None
+            else:
+                available_dates, default_date = available_dates_from_low(low_data)
         except Exception as exc:
             st.error(f"출결 파일을 읽을 수 없습니다: {exc}")
             available_dates = []
