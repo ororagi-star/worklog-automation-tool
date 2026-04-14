@@ -110,16 +110,6 @@ st.markdown(
         line-height: 1.5;
       }
 
-      .date-chip {
-        display: inline-flex;
-        margin: 0 6px 6px 0;
-        border-radius: 8px;
-        background: #e5f2ef;
-        padding: 6px 10px;
-        color: #17483f;
-        font-size: 12px;
-        font-weight: 700;
-      }
 
       .result-panel {
         margin-top: 18px;
@@ -246,14 +236,6 @@ def available_dates_from_low(low_data: bytes) -> tuple[list[date], date | None]:
     return available_dates, default_date
 
 
-def render_selected_dates(selected_dates: list[date]) -> None:
-    if not selected_dates:
-        st.caption("선택된 날짜가 없습니다. 생성 시 마지막 출석일을 자동으로 사용합니다.")
-        return
-
-    chips = "".join(f"<span class='date-chip'>{day.isoformat()}</span>" for day in selected_dates)
-    st.markdown(chips, unsafe_allow_html=True)
-
 
 def generate_files(low_data: bytes, selected_dates: list[date]) -> list[tuple[str, bytes]]:
     missing_templates = [template_path.name for _, template_path in DEFAULT_TEMPLATE_FILES if not template_path.exists()]
@@ -342,15 +324,13 @@ with st.container():
 
         if available_dates:
             default_selection = [default_date] if default_date else []
-            st.markdown("<p class='field-label'>작업일</p>", unsafe_allow_html=True)
             selected_dates = st.multiselect(
-                "작업일",
+                "생성일",
                 options=available_dates,
                 default=default_selection,
                 format_func=lambda day: day.isoformat(),
                 help="여러 날짜를 선택할 수 있습니다. 결과 생성은 아래 버튼을 눌렀을 때만 실행됩니다.",
             )
-            render_selected_dates(selected_dates)
         elif low_data is not None:
             st.warning("업로드된 파일에서 유효한 날짜 상태를 찾지 못했습니다. 엑셀 양식을 확인해 주세요.")
     else:
