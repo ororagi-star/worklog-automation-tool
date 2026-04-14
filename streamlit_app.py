@@ -58,7 +58,7 @@ st.markdown(
       .hero h1 {
         margin: 0 0 8px;
         color: #141f27;
-        font-size: 30px;
+        font-size: 28px;
         font-weight: 800;
         line-height: 1.3;
       }
@@ -67,14 +67,14 @@ st.markdown(
         margin: 0;
         max-width: 640px;
         color: #66727c;
-        font-size: 14px;
+        font-size: 12px;
         line-height: 1.55;
       }
 
       .eyebrow {
         margin: 0 0 8px;
         color: #0f766e;
-        font-size: 12px;
+        font-size: 11px;
         font-weight: 700;
         letter-spacing: 0;
       }
@@ -82,7 +82,7 @@ st.markdown(
       .section-title {
         margin: 0 0 6px;
         color: #1b2830;
-        font-size: 14px;
+        font-size: 13px;
         font-weight: 700;
       }
 
@@ -96,7 +96,7 @@ st.markdown(
       .field-label {
         margin: 0 0 8px;
         color: #1b2830;
-        font-size: 14px;
+        font-size: 13px;
         font-weight: 700;
         line-height: 1.4;
       }
@@ -107,7 +107,7 @@ st.markdown(
         background: #f4faf8;
         padding: 12px 14px;
         color: #40555e;
-        font-size: 13px;
+        font-size: 12px;
         line-height: 1.5;
       }
 
@@ -118,7 +118,7 @@ st.markdown(
         background: #e5f2ef;
         padding: 6px 10px;
         color: #17483f;
-        font-size: 13px;
+        font-size: 12px;
         font-weight: 700;
       }
 
@@ -133,7 +133,7 @@ st.markdown(
       .result-panel h3 {
         margin: 0 0 6px;
         color: #153d37;
-        font-size: 18px;
+        font-size: 15px;
         font-weight: 800;
       }
 
@@ -169,14 +169,14 @@ st.markdown(
       .stAlert,
       .stCaptionContainer,
       div[data-testid="stWidgetLabel"] {
-        font-size: 14px;
+        font-size: 12px;
       }
 
       .stButton > button,
       .stDownloadButton > button {
         border-radius: 8px;
         min-height: 44px;
-        font-size: 14px;
+        font-size: 13px;
         font-weight: 700;
       }
 
