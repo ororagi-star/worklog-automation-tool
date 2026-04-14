@@ -154,10 +154,17 @@ st.markdown(
       }
 
       label,
+      div[data-testid="stWidgetLabel"] p,
+      div[data-testid="stWidgetLabel"] {
+        font-size: 16px;
+        color: #1b2830;
+        font-weight: 700;
+        line-height: 1.4;
+      }
+
       .stMarkdown,
       .stAlert,
-      .stCaptionContainer,
-      div[data-testid="stWidgetLabel"] {
+      .stCaptionContainer {
         font-size: 14px;
       }
 
@@ -325,18 +332,17 @@ with st.container():
         if available_dates:
             default_selection = [default_date] if default_date else []
             selected_dates = st.multiselect(
-                "생성일",
+                "생성 대상일",
                 options=available_dates,
                 default=default_selection,
                 format_func=lambda day: day.isoformat(),
-                help="여러 날짜를 선택할 수 있습니다. 결과 생성은 아래 버튼을 눌렀을 때만 실행됩니다.",
+                help="여러 날짜를 선택할 수 있습니다. (기본 양식: worklog_set1.xlsx, worklog_set2.xlsx 사용)\n\n결과 생성은 아래 버튼을 눌렀을 때만 실행됩니다.",
             )
         elif low_data is not None:
             st.warning("업로드된 파일에서 유효한 날짜 상태를 찾지 못했습니다. 엑셀 양식을 확인해 주세요.")
     else:
         st.info("먼저 출결 파일을 올려주세요.")
 
-    st.markdown("<div class='privacy-note'>기본 양식은 worklog_set1.xlsx, worklog_set2.xlsx를 사용합니다.</div>", unsafe_allow_html=True)
     st.write("")
 
     can_generate = low_data is not None
