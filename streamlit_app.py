@@ -202,6 +202,7 @@ def uploaded_bytes(uploaded_file) -> bytes:
     return data
 
 
+@st.cache_data(show_spinner=False)
 def sanitize_phone_numbers(low_data: bytes) -> tuple[bytes, int]:
     workbook = load_workbook(BytesIO(low_data))
     removed_count = 0
@@ -236,6 +237,7 @@ def sanitize_phone_numbers(low_data: bytes) -> tuple[bytes, int]:
     return output.getvalue(), removed_count
 
 
+@st.cache_data(show_spinner=False)
 def available_dates_from_low(low_data: bytes) -> tuple[list[date], date | None]:
     workbook = load_workbook(BytesIO(low_data), data_only=True)
     sheet = workbook.active
@@ -310,7 +312,7 @@ st.markdown(
     <section class="hero">
       <p class="eyebrow">WORKLOG AUTOMATION</p>
       <h1>업무일지 자동 생성</h1>
-      <p>출결 파일을 올리고 기준일을 선택하면 결과 엑셀 2개를 ZIP으로 내려받을 수 있습니다.</p>
+      <p>출결 파일을 올리고 작업일을 선택하면 결과 엑셀 2개를 ZIP으로 내려받을 수 있습니다.</p>
     </section>
     """,
     unsafe_allow_html=True,
@@ -357,17 +359,17 @@ with st.container():
 
         if available_dates:
             default_selection = [default_date] if default_date else []
-            st.markdown("<p class='field-label'>기준일</p>", unsafe_allow_html=True)
+            st.markdown("<p class='field-label'>작업일</p>", unsafe_allow_html=True)
             selected_dates = st.multiselect(
-                "기준일",
+                "작업일",
                 options=available_dates,
                 default=default_selection,
                 format_func=lambda day: day.isoformat(),
-                help="여러 날짜를 선택할 수 있습니다. 비워두면 마지막 출석일을 사용합니다.",
+                help="여러 날짜를 선택할 수 있습니다. 결과 생성은 아래 버튼을 눌렀을 때만 실행됩니다.",
             )
             render_selected_dates(selected_dates)
         else:
-            st.info("출결 파일에서 날짜 컬럼을 찾으면 기준일 선택이 표시됩니다.")
+            st.info("출결 파일에서 날짜 컬럼을 찾으면 작업일 선택이 표시됩니다.")
     else:
         st.info("먼저 출결 파일을 올려주세요.")
 
