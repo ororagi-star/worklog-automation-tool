@@ -360,12 +360,14 @@ with st.container():
 
         if available_dates:
             default_selection = [default_date] if default_date else []
+            st.markdown("<p class='field-label'>생성 대상일</p>", unsafe_allow_html=True)
+            st.markdown("<p class='section-note'>목록에서 기준일로 삼을 날짜를 여러 개 고를 수 있습니다. (기본 양식: worklog_set1, worklog_set2 사용)</p>", unsafe_allow_html=True)
             selected_dates = st.multiselect(
                 "생성 대상일",
                 options=available_dates,
                 default=default_selection,
                 format_func=lambda day: day.isoformat(),
-                help="여러 날짜를 선택할 수 있습니다. (기본 양식: worklog_set1.xlsx, worklog_set2.xlsx 사용)\n\n결과 생성은 아래 버튼을 눌렀을 때만 실행됩니다.",
+                label_visibility="collapsed",
             )
         elif low_data is not None:
             st.warning("업로드된 파일에서 유효한 날짜 상태를 찾지 못했습니다. 엑셀 양식을 확인해 주세요.")
