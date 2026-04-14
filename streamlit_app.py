@@ -35,95 +35,94 @@ st.set_page_config(
 st.markdown(
     """
     <style>
+      html, body, [class*="css"] {
+        font-family: "Inter", "Segoe UI", "Malgun Gothic", Arial, sans-serif;
+      }
+
       .stApp {
-        background: #f6f8f9;
+        background: #f7f8fa;
       }
 
       [data-testid="stHeader"] {
-        background: rgba(246, 248, 249, 0.92);
+        background: rgba(247, 248, 250, 0.94);
+      }
+
+      .block-container {
+        max-width: 940px;
+        padding-top: 42px;
+        padding-bottom: 56px;
       }
 
       .hero {
-        border: 1px solid #d7e1df;
-        border-radius: 8px;
-        background: #ffffff;
-        padding: 28px 30px;
-        box-shadow: 0 14px 34px rgba(31, 47, 62, 0.07);
+        margin-bottom: 30px;
       }
 
       .hero h1 {
-        margin: 0 0 10px;
-        color: #15242d;
-        font-size: 36px;
-        line-height: 1.22;
+        margin: 0 0 8px;
+        color: #141f27;
+        font-size: 30px;
+        font-weight: 800;
+        line-height: 1.3;
       }
 
       .hero p {
         margin: 0;
-        max-width: 760px;
-        color: #566773;
-        font-size: 16px;
-        line-height: 1.6;
+        max-width: 640px;
+        color: #66727c;
+        font-size: 14px;
+        line-height: 1.55;
       }
 
       .eyebrow {
         margin: 0 0 8px;
-        color: #11715f;
-        font-size: 13px;
-        font-weight: 800;
+        color: #0f766e;
+        font-size: 12px;
+        font-weight: 700;
         letter-spacing: 0;
       }
 
       .version-pill {
         display: inline-flex;
-        margin-top: 14px;
-        border: 1px solid #d3e0dd;
+        margin-top: 12px;
+        border: 1px solid #d8e1df;
         border-radius: 8px;
-        padding: 6px 10px;
-        background: #f8fbfa;
-        color: #55646f;
-        font-size: 13px;
-        font-weight: 700;
-      }
-
-      .step-strip {
-        display: grid;
-        grid-template-columns: repeat(4, minmax(0, 1fr));
-        gap: 10px;
-        margin: 18px 0 4px;
-      }
-
-      .step {
-        border: 1px solid #dbe5e3;
-        border-radius: 8px;
+        padding: 5px 9px;
         background: #ffffff;
-        padding: 12px;
-      }
-
-      .step strong {
-        display: block;
-        margin-bottom: 4px;
-        color: #17483f;
-        font-size: 13px;
-      }
-
-      .step span {
-        color: #5c6a75;
-        font-size: 13px;
+        color: #60707a;
+        font-size: 12px;
+        font-weight: 600;
       }
 
       .section-title {
-        margin: 0 0 8px;
-        color: #17242e;
-        font-size: 22px;
+        margin: 0 0 6px;
+        color: #1b2830;
+        font-size: 18px;
         font-weight: 800;
       }
 
       .section-note {
-        margin: 0 0 18px;
-        color: #64727d;
-        font-size: 14px;
-        line-height: 1.55;
+        margin: 0 0 14px;
+        color: #66737d;
+        font-size: 13px;
+        line-height: 1.5;
+      }
+
+      .work-card {
+        border: 1px solid #dce4e2;
+        border-radius: 8px;
+        background: #ffffff;
+        padding: 22px;
+        box-shadow: 0 10px 28px rgba(31, 47, 62, 0.06);
+      }
+
+      .privacy-note {
+        border: 1px solid #dbe7e4;
+        border-radius: 8px;
+        background: #f4faf8;
+        padding: 12px 14px;
+        color: #40555e;
+        font-size: 13px;
+        line-height: 1.5;
       }
 
       .date-chip {
@@ -137,53 +136,33 @@ st.markdown(
         font-weight: 700;
       }
 
-      .info-panel {
-        border: 1px solid #dbe5e3;
-        border-radius: 8px;
-        background: #ffffff;
-        padding: 18px;
-      }
-
-      .info-panel h3 {
-        margin: 0 0 10px;
-        color: #17242e;
-        font-size: 18px;
-      }
-
-      .info-panel p {
-        margin: 0 0 12px;
-        color: #5d6d78;
-        font-size: 14px;
-        line-height: 1.55;
-      }
-
-      .info-list {
-        margin: 0;
-        padding-left: 18px;
-        color: #546571;
-        font-size: 14px;
-        line-height: 1.8;
-      }
-
       .result-panel {
-        border: 1px solid #c8ded8;
+        margin-top: 18px;
+        border: 1px solid #cde2dc;
         border-radius: 8px;
-        background: #eef8f5;
-        padding: 18px;
+        background: #f0f8f6;
+        padding: 16px;
       }
 
       .result-panel h3 {
-        margin: 0 0 8px;
-        color: #123d36;
-        font-size: 20px;
+        margin: 0 0 6px;
+        color: #153d37;
+        font-size: 18px;
+        font-weight: 800;
+      }
+
+      .result-panel p {
+        margin: 0 0 10px;
+        color: #47605b;
+        font-size: 13px;
       }
 
       .file-list {
-        margin: 0 0 16px;
+        margin: 0;
         padding-left: 18px;
         color: #234b45;
-        font-size: 14px;
-        line-height: 1.8;
+        font-size: 13px;
+        line-height: 1.7;
       }
 
       div[data-testid="stMetric"] {
@@ -194,35 +173,34 @@ st.markdown(
       }
 
       div[data-testid="stFileUploader"] section {
-        border-color: #cfdcda;
+        border-color: #d5dfdc;
         border-radius: 8px;
-        background: #fbfcfc;
+        background: #fbfcfd;
+      }
+
+      label,
+      .stMarkdown,
+      .stAlert,
+      .stCaptionContainer,
+      div[data-testid="stWidgetLabel"] {
+        font-size: 14px;
       }
 
       .stButton > button,
       .stDownloadButton > button {
         border-radius: 8px;
-        min-height: 46px;
-        font-weight: 800;
+        min-height: 44px;
+        font-size: 14px;
+        font-weight: 700;
       }
 
-      @media (max-width: 900px) {
-        .step-strip {
-          grid-template-columns: repeat(2, minmax(0, 1fr));
-        }
+      div[data-baseweb="select"] {
+        font-size: 14px;
       }
 
       @media (max-width: 560px) {
-        .hero {
-          padding: 22px;
-        }
-
         .hero h1 {
-          font-size: 30px;
-        }
-
-        .step-strip {
-          grid-template-columns: 1fr;
+          font-size: 26px;
         }
       }
     </style>
@@ -346,29 +324,17 @@ st.markdown(
     <section class="hero">
       <p class="eyebrow">WORKLOG AUTOMATION</p>
       <h1>업무일지 자동 생성</h1>
-      <p>출결 파일을 올리면 개인정보를 확인한 뒤, 선택한 기준일에 맞춰 업무일지 결과 엑셀 2개를 ZIP으로 만들어 드립니다.</p>
+      <p>출결 파일을 올리고 기준일을 선택하면 결과 엑셀 2개를 ZIP으로 내려받을 수 있습니다.</p>
       <span class="version-pill">버전 {APP_VERSION}</span>
-    </section>
-    <section class="step-strip">
-      <div class="step"><strong>1. 업로드</strong><span>출결 파일 선택</span></div>
-      <div class="step"><strong>2. 보호</strong><span>전화번호 삭제 확인</span></div>
-      <div class="step"><strong>3. 기준일</strong><span>여러 날짜 선택</span></div>
-      <div class="step"><strong>4. 다운로드</strong><span>결과 ZIP 저장</span></div>
     </section>
     """,
     unsafe_allow_html=True,
 )
 
-st.write("")
-
-left, right = st.columns([1.5, 0.9], gap="large")
-
-with left:
-    st.markdown("<h2 class='section-title'>파일 준비</h2>", unsafe_allow_html=True)
-    st.markdown(
-        "<p class='section-note'>업로드한 원본 파일은 저장하지 않습니다. 전화번호가 발견되면 삭제 동의 후 개인정보가 제거된 사본으로만 처리합니다.</p>",
-        unsafe_allow_html=True,
-    )
+with st.container():
+    st.markdown("<div class='work-card'>", unsafe_allow_html=True)
+    st.markdown("<h2 class='section-title'>출결 파일</h2>", unsafe_allow_html=True)
+    st.markdown("<p class='section-note'>원본은 저장하지 않으며, 전화번호가 있으면 삭제 동의 후 처리합니다.</p>", unsafe_allow_html=True)
     low_file = st.file_uploader("출결 파일 업로드", type=["xlsx"], label_visibility="collapsed")
 
     low_data: bytes | None = None
@@ -407,11 +373,7 @@ with left:
 
         if available_dates:
             default_selection = [default_date] if default_date else []
-            st.markdown("<h2 class='section-title'>기준일 선택</h2>", unsafe_allow_html=True)
-            st.markdown(
-                "<p class='section-note'>결과에 넣을 날짜를 선택하세요. 여러 날짜를 선택하면 한 파일 안에 날짜별 양식이 이어집니다.</p>",
-                unsafe_allow_html=True,
-            )
+            st.markdown("<h2 class='section-title'>기준일</h2>", unsafe_allow_html=True)
             selected_dates = st.multiselect(
                 "기준일",
                 options=available_dates,
@@ -425,62 +387,48 @@ with left:
     else:
         st.info("먼저 출결 파일을 올려주세요.")
 
-with right:
-    st.markdown(
-        """
-        <aside class="info-panel">
-          <h3>처리 기준</h3>
-          <p>기본 양식은 웹앱에 포함된 파일을 사용합니다.</p>
-          <ul class="info-list">
-            <li>worklog_set1.xlsx</li>
-            <li>worklog_set2.xlsx</li>
-            <li>전화번호는 업무일지 생성에 사용하지 않음</li>
-            <li>결과는 ZIP 파일 하나로 다운로드</li>
-          </ul>
-        </aside>
-        """,
-        unsafe_allow_html=True,
-    )
+    st.markdown("<div class='privacy-note'>기본 양식은 worklog_set1.xlsx, worklog_set2.xlsx를 사용합니다.</div>", unsafe_allow_html=True)
+    st.write("")
 
-st.divider()
+    can_generate = low_data is not None
+    button_label = "결과 ZIP 만들기" if can_generate else "출결 파일을 먼저 올려주세요"
+    if st.button(button_label, type="primary", use_container_width=True, disabled=not can_generate):
+        try:
+            output_files = generate_files(
+                low_data=low_data or b"",
+                selected_dates=sorted(selected_dates),
+            )
+        except Exception as exc:
+            st.error(f"처리 중 오류가 발생했습니다: {exc}")
+        else:
+            zip_name, zip_data = make_result_zip(output_files)
+            st.session_state.result_zip = {
+                "name": zip_name,
+                "data": zip_data,
+                "files": [output_name for output_name, _ in output_files],
+            }
 
-can_generate = low_data is not None
-button_label = "결과 ZIP 만들기" if can_generate else "출결 파일을 먼저 올려주세요"
-if st.button(button_label, type="primary", use_container_width=True, disabled=not can_generate):
-    try:
-        output_files = generate_files(
-            low_data=low_data or b"",
-            selected_dates=sorted(selected_dates),
+    if st.session_state.result_zip:
+        result_zip = st.session_state.result_zip
+        files_html = "".join(f"<li>{output_name}</li>" for output_name in result_zip["files"])
+        st.markdown(
+            f"""
+            <section class="result-panel">
+              <h3>생성 완료</h3>
+              <p>아래 파일들이 ZIP에 포함됩니다.</p>
+              <ul class="file-list">{files_html}</ul>
+            </section>
+            """,
+            unsafe_allow_html=True,
         )
-    except Exception as exc:
-        st.error(f"처리 중 오류가 발생했습니다: {exc}")
-    else:
-        zip_name, zip_data = make_result_zip(output_files)
-        st.session_state.result_zip = {
-            "name": zip_name,
-            "data": zip_data,
-            "files": [output_name for output_name, _ in output_files],
-        }
 
-if st.session_state.result_zip:
-    result_zip = st.session_state.result_zip
-    files_html = "".join(f"<li>{output_name}</li>" for output_name in result_zip["files"])
-    st.markdown(
-        f"""
-        <section class="result-panel">
-          <h3>생성이 완료되었습니다</h3>
-          <p>ZIP 파일 안에 결과 엑셀 2개가 들어 있습니다.</p>
-          <ul class="file-list">{files_html}</ul>
-        </section>
-        """,
-        unsafe_allow_html=True,
-    )
+        st.download_button(
+            label="결과 ZIP 다운로드",
+            data=result_zip["data"],
+            file_name=result_zip["name"],
+            mime="application/zip",
+            type="primary",
+            use_container_width=True,
+        )
 
-    st.download_button(
-        label="결과 ZIP 다운로드",
-        data=result_zip["data"],
-        file_name=result_zip["name"],
-        mime="application/zip",
-        type="primary",
-        use_container_width=True,
-    )
+    st.markdown("</div>", unsafe_allow_html=True)
