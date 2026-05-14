@@ -79,7 +79,8 @@ def normalize_key(value: object) -> str:
     text = normalize_text(value)
     text = re.sub(r"\s+", "", text)
     text = text.replace("·", "")
-    text = re.sub(r"\([^)]*\)$", "", text)
+    text = re.sub(r"(\d+)반", r"\1", text)
+    text = re.sub(r"\(([^)]*?)반\)", r"(\1)", text)
     text = text.replace("반", "")
     return text
 
@@ -150,13 +151,23 @@ def match_programs(worklog_item: str, available_programs: set[str]) -> list[str]
         return [worklog_item]
 
     item_key = normalize_key(worklog_item)
-    matches = []
+    exact_matches = []
+    fuzzy_matches = []
     for program in available_programs:
         program_key = normalize_key(program)
-        if item_key and (item_key == program_key or item_key in program_key or program_key in item_key):
-            matches.append(program)
+        if not item_key:
+            continue
+        if item_key == program_key:
+            exact_matches.append(program)
+            continue
+        if len(item_key) >= 5 and (item_key in program_key or program_key in item_key):
+            fuzzy_matches.append(program)
 
-    return sorted(matches)
+    if exact_matches:
+        return sorted(exact_matches)
+    if len(fuzzy_matches) == 1:
+        return fuzzy_matches
+    return []
 
 
 def month_to_date_days(date_columns: dict[date, int], target_date: date) -> list[date]:
