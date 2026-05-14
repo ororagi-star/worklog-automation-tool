@@ -1,9 +1,10 @@
 from __future__ import annotations
 
 import re
+import subprocess
 import tempfile
 import zipfile
-from datetime import date
+from datetime import date, datetime
 from io import BytesIO
 from pathlib import Path
 
@@ -21,6 +22,32 @@ DEFAULT_TEMPLATE_FILES = [
 PHONE_PATTERN = re.compile(
     r"(?<!\d)(?:01[016789][-\s.]?\d{3,4}[-\s.]?\d{4}|0(?:2|[3-6][1-5]|70|50[2-8])[-\s.]?\d{3,4}[-\s.]?\d{4})(?!\d)"
 )
+
+
+def app_build_info() -> tuple[str, str]:
+    try:
+        version = subprocess.check_output(
+            ["git", "rev-parse", "--short", "HEAD"],
+            cwd=BASE_DIR,
+            text=True,
+            encoding="utf-8",
+        ).strip()
+        updated_at = subprocess.check_output(
+            ["git", "log", "-1", "--date=format:%Y-%m-%d %H:%M", "--format=%cd"],
+            cwd=BASE_DIR,
+            text=True,
+            encoding="utf-8",
+        ).strip()
+        if version and updated_at:
+            return version, updated_at
+    except Exception:
+        pass
+
+    mtime = datetime.fromtimestamp((BASE_DIR / "streamlit_app.py").stat().st_mtime)
+    return "local", mtime.strftime("%Y-%m-%d %H:%M")
+
+
+APP_VERSION, APP_UPDATED_AT = app_build_info()
 
 
 st.set_page_config(
@@ -68,6 +95,13 @@ st.markdown(
         color: #475569;
         font-size: 15px;
         line-height: 1.6;
+      }
+
+      .build-meta {
+        margin-top: 10px;
+        color: #64748b;
+        font-size: 13px;
+        line-height: 1.5;
       }
 
       .eyebrow {
@@ -325,11 +359,12 @@ if "result_zip" not in st.session_state:
 
 
 st.markdown(
-    """
+    f"""
     <section class="hero">
       <p class="eyebrow">WORKLOG AUTOMATION</p>
       <h1>업무일지 자동 생성</h1>
       <p>출결 파일을 올리고 작업일을 선택하면 결과 엑셀 2개를 ZIP으로 내려받을 수 있습니다.</p>
+      <p class="build-meta">버전: {APP_VERSION} | 최종 업데이트: {APP_UPDATED_AT}</p>
     </section>
     """,
     unsafe_allow_html=True,
