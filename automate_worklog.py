@@ -59,6 +59,18 @@ MANUAL_PROGRAM_MAP = {
     "노인체육교실": ["상반기 노인체육교실"],
     "한글교실(초급1)": ["한글교실(초급1반)"],
     "한글교실(초급2)": ["한글교실(초급2반)"],
+    "한글교실 초급": ["한글교실(초급1반)"],
+    "한글교실(초급)": ["한글교실(초급1반)"],
+    "한글교실 중급": ["한글교실(초급2반)"],
+    "한글교실 고급": ["한글교실(중급)"],
+    "한글교실(고급)": ["한글교실(중급)"],
+    "영어 첫걸금": ["영어(초급)"],
+    "영어 첫걸음": ["영어(초급)"],
+    "생활 영어": ["영어(중급)"],
+    "일본어 첫걸음": ["일본어(초급)"],
+    "일본어 회화": ["일본어(중급)"],
+    "중국어 첫걸음": ["중국어(초급)"],
+    "중국어 회화": ["중국어(중급)"],
     "한글서예1반": ["한글서예1반(화)"],
     "한글서예2반": ["한글서예2반(수)"],
     "한글서예3반": ["한글서예3반(목)"],
@@ -146,6 +158,9 @@ def build_attendance_index(low_sheet, date_columns: dict[date, int]):
 def match_programs(worklog_item: str, available_programs: set[str]) -> list[str]:
     if worklog_item in MANUAL_PROGRAM_MAP:
         return [name for name in MANUAL_PROGRAM_MAP[worklog_item] if name in available_programs]
+    stripped_item = worklog_item.replace(" ", "")
+    if stripped_item in MANUAL_PROGRAM_MAP:
+        return [name for name in MANUAL_PROGRAM_MAP[stripped_item] if name in available_programs]
 
     if worklog_item in available_programs:
         return [worklog_item]
