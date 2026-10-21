@@ -12,5 +12,7 @@ uploads/
 *.log
 *.spec
 __pycache__/
+data/
+.streamlit/secrets.toml
 .DS_Store
 Thumbs.db

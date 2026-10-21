@@ -64,7 +64,7 @@ MANUAL_PROGRAM_MAP = {
     "한글교실 중급": ["한글교실(초급2반)"],
     "한글교실 고급": ["한글교실(중급)"],
     "한글교실(고급)": ["한글교실(중급)"],
-    "영어 첫걸금": ["영어(초급)"],
+    "영어 첫걸금": ["영어 첫걸음", "영어(초급)"],
     "영어 첫걸음": ["영어(초급)"],
     "생활 영어": ["영어(중급)"],
     "일본어 첫걸음": ["일본어(초급)"],
@@ -93,7 +93,6 @@ def normalize_key(value: object) -> str:
     text = text.replace("·", "")
     text = re.sub(r"(\d+)반", r"\1", text)
     text = re.sub(r"\(([^)]*?)반\)", r"(\1)", text)
-    text = text.replace("반", "")
     return text
 
 
@@ -156,33 +155,25 @@ def build_attendance_index(low_sheet, date_columns: dict[date, int]):
 
 
 def match_programs(worklog_item: str, available_programs: set[str]) -> list[str]:
-    if worklog_item in MANUAL_PROGRAM_MAP:
-        return [name for name in MANUAL_PROGRAM_MAP[worklog_item] if name in available_programs]
-    stripped_item = worklog_item.replace(" ", "")
-    if stripped_item in MANUAL_PROGRAM_MAP:
-        return [name for name in MANUAL_PROGRAM_MAP[stripped_item] if name in available_programs]
-
     if worklog_item in available_programs:
         return [worklog_item]
 
     item_key = normalize_key(worklog_item)
-    exact_matches = []
-    fuzzy_matches = []
-    for program in available_programs:
-        program_key = normalize_key(program)
-        if not item_key:
-            continue
-        if item_key == program_key:
-            exact_matches.append(program)
-            continue
-        if len(item_key) >= 5 and (item_key in program_key or program_key in item_key):
-            fuzzy_matches.append(program)
-
+    if not item_key:
+        return []
+    exact_matches = sorted(name for name in available_programs if normalize_key(name) == item_key)
     if exact_matches:
-        return sorted(exact_matches)
-    if len(fuzzy_matches) == 1:
-        return fuzzy_matches
-    return []
+        return exact_matches if len(exact_matches) == 1 else []
+
+    # Resolve known renames in either direction, without guessing from substrings.
+    alias_keys = set()
+    for item, names in MANUAL_PROGRAM_MAP.items():
+        if normalize_key(item) == item_key:
+            alias_keys.update(normalize_key(name) for name in names)
+        if any(normalize_key(name) == item_key for name in names):
+            alias_keys.add(normalize_key(item))
+    matches = sorted(name for name in available_programs if normalize_key(name) in alias_keys)
+    return matches if len(matches) == 1 else []
 
 
 def month_to_date_days(date_columns: dict[date, int], target_date: date) -> list[date]:
@@ -270,6 +261,7 @@ def fill_sheet_block(
     date_columns: dict[date, int],
     daily_counts,
     available_programs: set[str],
+    row_items: dict | None = None,
 ) -> dict:
     month_days = month_to_date_days(date_columns, selected_date)
     copy_template_date_style(sheet, selected_date, block_start_row)
@@ -285,12 +277,24 @@ def fill_sheet_block(
         if not item:
             continue
 
-        if item in SKIP_WORKLOG_ITEMS:
+        config_item = row_items.get(row - block_start_row + 1) if row_items is not None else None
+        if row_items is not None and config_item is None:
+            continue
+        if (config_item and config_item["mode"] == "집계 제외") or (config_item is None and item in SKIP_WORKLOG_ITEMS):
             skipped_rows.append({"row": row, "item": item, "reason": "출결 원본 대상 아님"})
             continue
 
-        programs = match_programs(item, available_programs)
+        if config_item:
+            from worklog_config import resolve_sources
+
+            programs = resolve_sources(config_item, available_programs)
+            if config_item["mode"] == "직접 연결" and any(name not in available_programs for name in config_item["sources"]):
+                programs = []
+        else:
+            programs = match_programs(item, available_programs)
         if not programs:
+            for col in range(WORKLOG_DAILY_COUNT_COL, WORKLOG_MONTH_PEOPLE_COL + 1):
+                sheet.cell(row, col).value = None
             unmatched_rows.append({"row": row, "item": item})
             continue
 
@@ -303,6 +307,9 @@ def fill_sheet_block(
             for day in month_days
             if daily_counts[program].get(day, 0) > 0
         )
+        if config_item and config_item["session_rule"] == "하루 1건":
+            daily_sessions = int(daily_people > 0)
+            month_sessions = sum(any(daily_counts[program].get(day, 0) > 0 for program in programs) for day in month_days)
 
         set_output_cell(sheet.cell(row, WORKLOG_DAILY_COUNT_COL), daily_sessions)
         set_output_cell(sheet.cell(row, WORKLOG_DAILY_PEOPLE_COL), daily_people)
@@ -320,6 +327,10 @@ def fill_sheet_block(
                 "month_people": month_people,
             }
         )
+
+    if row_items is not None:
+        for col, key in ((5, "daily_sessions"), (6, "daily_people"), (7, "month_sessions"), (8, "month_people")):
+            sheet.cell(block_start_row + 5, col, sum(row[key] for row in matched_rows))
 
     return {
         "target_date": selected_date.isoformat(),
@@ -339,6 +350,7 @@ def fill_worklog_dates(
     template_file: Path,
     output_file: Path,
     target_dates: list[date] | None = None,
+    config_items: list[dict] | None = None,
 ) -> dict:
     low_wb = load_workbook(low_file, data_only=True)
     low_sheet = low_wb.active
@@ -354,10 +366,15 @@ def fill_worklog_dates(
     daily_counts, available_programs = build_attendance_index(low_sheet, date_columns)
 
     template_wb = load_workbook(template_file)
-    if WORKLOG_SHEET_NAME not in template_wb.sheetnames:
+    if WORKLOG_SHEET_NAME not in template_wb.sheetnames and config_items is None:
         raise ValueError(f"{template_file.name}에 '{WORKLOG_SHEET_NAME}' 시트가 없습니다.")
 
-    sheet = template_wb[WORKLOG_SHEET_NAME]
+    sheet = template_wb[WORKLOG_SHEET_NAME] if WORKLOG_SHEET_NAME in template_wb.sheetnames else template_wb.active
+    row_items = None
+    if config_items is not None:
+        from configured_worklog import build_configured_sheet
+
+        sheet, row_items = build_configured_sheet(template_wb, sheet, config_items)
     block_height = prepare_date_blocks(sheet, selected_dates)
 
     date_summaries = []
@@ -370,6 +387,7 @@ def fill_worklog_dates(
             date_columns=date_columns,
             daily_counts=daily_counts,
             available_programs=available_programs,
+            row_items=row_items,
         )
         date_summaries.append(block_summary)
 
@@ -383,6 +401,8 @@ def fill_worklog_dates(
 
     output_file.parent.mkdir(parents=True, exist_ok=True)
     template_wb.save(output_file)
+    template_wb.close()
+    low_wb.close()
 
     return {
         "target_date": selected_dates[0].isoformat(),

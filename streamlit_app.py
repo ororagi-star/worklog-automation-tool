@@ -1,17 +1,25 @@
 from __future__ import annotations
 
+import csv
+import hashlib
+import json
+import os
 import re
 import subprocess
 import tempfile
 import zipfile
 from datetime import date, datetime
-from io import BytesIO
+from io import BytesIO, StringIO
 from pathlib import Path
+from urllib.parse import urlparse
 
 import streamlit as st
 from openpyxl import load_workbook
 
-from automate_worklog import fill_worklog_dates, find_date_columns, latest_populated_date
+from automate_worklog import build_attendance_index, fill_worklog_dates, find_date_columns, latest_populated_date
+from config_store import ConfigStore, SessionConfigStore
+from settings_ui import render_settings
+from worklog_config import check_source_ownership, default_config, validate_config
 
 
 BASE_DIR = Path(__file__).resolve().parent
@@ -307,7 +315,13 @@ def available_dates_from_low(low_data: bytes) -> tuple[list[date], date | None]:
 
 
 
-def generate_files(low_data: bytes, selected_dates: list[date]) -> list[tuple[str, bytes]]:
+def generate_files(low_data: bytes, selected_dates: list[date], settings: dict | None = None) -> list[tuple[str, bytes]]:
+    if settings is not None:
+        settings = validate_config(settings)
+        workbook = load_workbook(BytesIO(low_data), data_only=True)
+        _, programs = build_attendance_index(workbook.active, find_date_columns(workbook.active))
+        workbook.close()
+        check_source_ownership(settings, programs)
     missing_templates = [template_path.name for _, template_path in DEFAULT_TEMPLATE_FILES if not template_path.exists()]
     if missing_templates:
         missing_text = ", ".join(missing_templates)
@@ -320,6 +334,8 @@ def generate_files(low_data: bytes, selected_dates: list[date]) -> list[tuple[st
 
         output_files: list[tuple[str, bytes]] = []
         target_dates = selected_dates or None
+        audit_rows = []
+        used_programs = set()
 
         for template_label, template_path in DEFAULT_TEMPLATE_FILES:
             temp_output_path = temp_dir / f"{template_label}_result.xlsx"
@@ -328,10 +344,30 @@ def generate_files(low_data: bytes, selected_dates: list[date]) -> list[tuple[st
                 template_file=template_path,
                 output_file=temp_output_path,
                 target_dates=target_dates,
+                config_items=next(t["items"] for t in settings["templates"] if t["key"] == template_label) if settings is not None else None,
             )
             date_part = "_".join(summary["target_dates"])
             output_name = f"{template_label}_result_{date_part}.xlsx"
             output_files.append((output_name, temp_output_path.read_bytes()))
+            for row in summary["date_summaries"][0]["matched_rows"]:
+                used_programs.update(row["programs"])
+                audit_rows.append([template_label, row["item"], ", ".join(row["programs"]), "반영"])
+            for row in summary["date_summaries"][0]["unmatched_rows"]:
+                audit_rows.append([template_label, row["item"], "", "원본에서 연결할 수업을 찾지 못함"])
+
+        workbook = load_workbook(BytesIO(low_data), data_only=True)
+        sheet = workbook.active
+        _, programs = build_attendance_index(sheet, find_date_columns(sheet))
+        workbook.close()
+        for program in sorted(programs - used_programs):
+            audit_rows.append(["", "", program, "양식에 연결되지 않음: 수업명 또는 양식 행 확인 필요"])
+        audit = StringIO(newline="")
+        writer = csv.writer(audit)
+        writer.writerow(["양식", "업무일지 항목", "원본 수업명", "확인 결과"])
+        writer.writerows(audit_rows)
+        output_files.append(("program_matching_report.csv", audit.getvalue().encode("utf-8-sig")))
+        if settings is not None:
+            output_files.append(("worklog_settings.json", json.dumps(settings, ensure_ascii=False, indent=2).encode("utf-8")))
 
     return output_files
 
@@ -356,6 +392,36 @@ def make_result_zip(output_files: list[tuple[str, bytes]]) -> tuple[str, bytes]:
 
 if "result_zip" not in st.session_state:
     st.session_state.result_zip = None
+
+
+def environment_setting(name):
+    value = os.environ.get(name)
+    if value is not None:
+        return value
+    try:
+        return str(st.secrets.get(name, ""))
+    except FileNotFoundError:
+        return ""
+
+
+@st.cache_data(show_spinner=False)
+def initial_settings():
+    return default_config(BASE_DIR)
+
+
+try:
+    database_url = environment_setting("DATABASE_URL")
+    local_config_path = environment_setting("WORKLOG_CONFIG_PATH")
+    local_browser = urlparse(st.context.url).hostname in {"127.0.0.1", "localhost", "::1"}
+    if database_url or local_config_path or local_browser:
+        settings_store = ConfigStore(Path(local_config_path or BASE_DIR / "data" / "worklog_settings.sqlite3"), database_url)
+    else:
+        settings_store = SessionConfigStore(st.session_state)
+    settings_store.initialize(initial_settings())
+    app_settings, settings_revision, settings_updated = settings_store.load()
+except Exception:
+    st.error("양식 설정을 불러올 수 없습니다. 저장소 연결과 접속 설정을 확인해 주세요.")
+    st.stop()
 
 
 st.markdown(
@@ -389,6 +455,7 @@ with st.container():
                 st.info(f"🔒 개인정보 보호를 위해 엑셀 내 전화번호(추정) {phone_count}개를 자동 삭제했습니다.")
                 
         except Exception as exc:
+            low_data = None
             st.error(f"출결 파일을 읽을 수 없습니다: {exc}")
             available_dates = []
             default_date = None
@@ -413,21 +480,34 @@ with st.container():
 
     st.write("")
 
-    can_generate = low_data is not None
-    button_label = "생성" if can_generate else "출결 파일을 먼저 올려주세요"
+    current_programs = set()
+    if low_data:
+        workbook = load_workbook(BytesIO(low_data), data_only=True)
+        _, current_programs = build_attendance_index(workbook.active, find_date_columns(workbook.active))
+        workbook.close()
+    render_settings(settings_store, app_settings, settings_revision, settings_updated, current_programs, environment_setting("APP_ADMIN_PASSWORD"))
+
+    input_context = (hashlib.sha256(low_data).hexdigest(), tuple(sorted(selected_dates)), settings_revision) if low_data else None
+    if st.session_state.get("result_context") != input_context:
+        st.session_state.result_zip = None
+    can_generate = low_data is not None and bool(selected_dates)
+    button_label = "생성"
     col1, col2 = st.columns(2)
 
     with col1:
         if st.button(button_label, type="primary", use_container_width=True, disabled=not can_generate):
+            st.session_state.result_zip = None
             try:
                 output_files = generate_files(
                     low_data=low_data or b"",
                     selected_dates=sorted(selected_dates),
+                    settings=app_settings,
                 )
+                zip_name, zip_data = make_result_zip(output_files)
             except Exception as exc:
                 st.error(f"처리 중 오류가 발생했습니다: {exc}")
             else:
-                zip_name, zip_data = make_result_zip(output_files)
+                st.session_state.result_context = input_context
                 st.session_state.result_zip = {
                     "name": zip_name,
                     "data": zip_data,
@@ -450,6 +530,7 @@ with st.container():
         )
 
     if st.session_state.result_zip:
+        st.info("수업명이 추가되거나 변경된 경우 ZIP의 program_matching_report.csv에서 연결되지 않은 수업을 확인해 주세요.")
         result_zip = st.session_state.result_zip
         files_html = "".join(f"<li>{output_name}</li>" for output_name in result_zip["files"])
         st.markdown(
